@@ -1,10 +1,11 @@
 import type { Route } from './+types/home';
-import {Welcome} from "~/welcome/welcome";
 
 export function meta({}: Route.MetaArgs) {
-	return [{ title: 'New React Router App' }, { name: 'description', content: 'Welcome to React Router!' }];
+	return [{ title: 'Store maN' }, { name: 'Manage your business!', content: 'Welcome to Store maN!' }];
 }
 
-export default function Dashboard() {
-	return <Welcome />;
+export default function Home() {
+	return <div className='items-center'>
+    <p className='font-bold text-xl text-gray-800 leading-tight'>Home Page!</p>
+  </div>
 }
