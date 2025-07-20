@@ -1,8 +1,11 @@
 import {isRouteErrorResponse, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration} from 'react-router';
+import { useLocation } from 'react-router-dom';
 
 import type {Route} from './+types/root';
 import './app.css';
 import Navbar from "~/components/navbar";
+import ProtectedRoute from "~/components/ProtectedRoute";
+import {AuthProvider} from "~/context/AuthContext";
 
 export const links: Route.LinksFunction = () => [
   {rel: 'preconnect', href: 'https://fonts.googleapis.com'},
@@ -27,7 +30,9 @@ export function Layout({children}: { children: React.ReactNode }) {
       <Links/>
     </head>
     <body>
-    {children}
+    <AuthProvider> {/* ✅ Bọc tại đây */}
+      {children}
+    </AuthProvider>
     <ScrollRestoration/>
     <Scripts/>
     </body>
@@ -37,13 +42,21 @@ export function Layout({children}: { children: React.ReactNode }) {
 
 
 export default function App() {
-  return <>
-    <Navbar />
+  const location = useLocation();
+  const isLoginPage = location.pathname === "/login";
 
-    <main className='container mx-auto p-4'>
-      <Outlet/>
-    </main>
-  </>
+  if (isLoginPage) {
+    return <Outlet />;
+  }
+
+  return (
+    <ProtectedRoute>
+      <Navbar />
+      <main className="container mx-auto p-4">
+        <Outlet />
+      </main>
+    </ProtectedRoute>
+  );
 };
 
 

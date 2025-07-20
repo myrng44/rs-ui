@@ -6,12 +6,12 @@
 		"build": "react-router build",
 		"dev": "react-router dev",
 		"start": "react-router-serve ./build/server/index.js",
-    "start:csr": "vite preview",
+		"start:csr": "vite preview",
 		"typecheck": "react-router typegen && tsc",
 		"prettier": "prettier --check .",
 		"prettier:fix": "prettier --write .",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix"
 	},
 	"dependencies": {
 		"@react-router/node": "^7.5.3",
@@ -19,7 +19,8 @@
 		"isbot": "^5.1.27",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
-		"react-router": "^7.5.3"
+		"react-router": "^7.5.3",
+		"react-router-dom": "^7.7.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.31.0",

@@ -4,13 +4,22 @@
 	--font-sans:
 		'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
 		'Noto Color Emoji';
+  /* dashboard colors tu theme */
+  --dashboard-primary: #da0c81;
+  --dashboard-secondary: #940b92;
+  --dashboard-tertiary: #610c9f;
+  --dashboard-accent: #e95793;
+  --user-avt-left: #FF6363;
+  --user-avt-right: #BEE4D0;
+  --hover-color: #ffffff;
+  --text-primary: #c5c5c5;
 }
 
-html,
+/*html,
 body {
 	@apply bg-white dark:bg-gray-300;
 
 	@media (prefers-color-scheme: dark) {
 		color-scheme: dark;
 	}
-}
+}*/
