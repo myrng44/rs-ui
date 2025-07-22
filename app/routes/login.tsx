@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "~/context/AuthContext";
 import { Navigate, useNavigate } from "react-router";
-import { Card } from "../components/ui/Card";
+import { Card } from "~/components/ui/Card";
 import FormField from "../components/ui/FormField";
 import Input from "../components/ui/Input";
 import PasswordInput from "../components/ui/PasswordInput";
