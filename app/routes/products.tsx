@@ -17,12 +17,13 @@ export default function Products() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   //fetch products from API
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await apiClient.get("/api/v1/products");
+      const response = await apiClient.get("/api/v1/products?query=deleted:false");
 
       if (response.ok) {
         const data: ProductListResponse = await response.json();
@@ -45,9 +46,9 @@ export default function Products() {
     fetchProducts();
   }, []);
 
-  const handleAddSuccess = () => {
+  const handleAddSuccess = async () => {
     //refresh product list and close modal
-    fetchProducts();
+    await fetchProducts();
     setTimeout(() => {
       setIsAddModalOpen(false);
     }, 1500);
@@ -62,9 +63,9 @@ export default function Products() {
     setIsEditModalOpen(true);
   };
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = async () => {
     //refresh product list and close modal
-    fetchProducts();
+    await fetchProducts();
     setTimeout(() => {
       setIsEditModalOpen(false);
       setSelectedProduct(null);
@@ -76,7 +77,7 @@ export default function Products() {
     setSelectedProduct(null);
   };
 
-  const handleDeleteProduct = async (productId: number) => {
+  const handleDeleteProduct = async (productId: string) => {
     if (!confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) {
       return;
     }
@@ -86,13 +87,21 @@ export default function Products() {
 
       if (response.ok) {
         //refresh product list
-        fetchProducts();
+        await fetchProducts();
+        setSuccessMessage("Xóa sản phẩm thành công!");
+        setTimeout(() => setSuccessMessage(""), 1000);
+      } else if (response.status === 404) {
+        setError("Sản phẩm này đã được xóa bởi người khác.");
+        await fetchProducts();
+        setTimeout(() => setError(""), 3000);
       } else {
-        alert("Có lỗi xảy ra khi xóa sản phẩm");
+        setError("Có lỗi xảy ra khi xóa sản phẩm");
+        setTimeout(() => setError(""), 3000);
       }
     } catch (err) {
       console.error("Error deleting product:", err);
-      alert("Có lỗi xảy ra khi xóa sản phẩm");
+      setError("Có lỗi xảy ra khi xóa sản phẩm. Vui lòng thử lại.");
+      setTimeout(() => setError(""), 1000);
     }
   };
 
@@ -154,6 +163,28 @@ export default function Products() {
             Thêm Sản Phẩm
           </Button>
         </div>
+
+        {/* Success message */}
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex">
+              <svg
+                className="w-5 h-5 text-green-400 mr-2 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <p className="text-green-800 text-sm">{successMessage}</p>
+            </div>
+          </div>
+        )}
 
         {/* Error message */}
         {error && (

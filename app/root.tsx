@@ -6,6 +6,7 @@ import './app.css';
 import Navbar from "~/components/navbar";
 import ProtectedRoute from "~/components/ProtectedRoute";
 import {AuthProvider} from "~/context/AuthContext";
+import type {ReactNode} from "react";
 
 export const links: Route.LinksFunction = () => [
   {rel: 'preconnect', href: 'https://fonts.googleapis.com'},
@@ -20,17 +21,18 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-export function Layout({children}: { children: React.ReactNode }) {
+export function Layout({children}: { children: ReactNode }) {
   return (
     <html lang='en'>
     <head>
       <meta charSet='utf-8'/>
       <meta name='viewport' content='width=device-width, initial-scale=1'/>
       <Meta/>
+      <title>Store maN</title>
       <Links/>
     </head>
     <body>
-    <AuthProvider> {/* ✅ Bọc tại đây */}
+    <AuthProvider> {/* Bọc tại đây */}
       {children}
     </AuthProvider>
     <ScrollRestoration/>

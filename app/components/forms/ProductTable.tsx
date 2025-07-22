@@ -5,7 +5,7 @@ import Button from "../ui/Button";
 interface ProductTableProps {
   products: Product[];
   onEdit: (product: Product) => void;
-  onDelete?: (productId: number) => void;
+  onDelete?: (productId: string) => void;
   isLoading?: boolean;
 }
 

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import type { Product, ProductFormData } from "../../types/product";
+import {useState, useEffect, type FormEvent} from "react";
+import React from "react";
+import type { Product, ProductFormData } from "~/types/product";
 import FormField from "../ui/FormField";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
@@ -90,14 +91,12 @@ export default function EditProductForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitError("");
     setSubmitSuccess("");
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsLoading(true);
 
@@ -126,10 +125,22 @@ export default function EditProductForm({
           onSuccess?.();
         }, 1500);
       } else {
-        const errorData = await response.json();
-        setSubmitError(
-          errorData.message || "Có lỗi xảy ra khi cập nhật sản phẩm",
-        );
+        let errorMessage = "Có lỗi xảy ra khi cập nhật sản phẩm";
+
+        if (response.status === 404) {
+          errorMessage = "Sản phẩm này không còn tồn tại. Có thể đã bị xóa bởi người khác.";
+          //auto close modal and refresh list after showing error
+          setTimeout(() => {
+            onSuccess?.(); // This will refresh the product list
+          }, 3000);
+        } else {
+          try {
+            const errorData = await response.json();
+          } catch (e) {
+
+          }
+        }
+        setSubmitError(errorMessage);
       }
     } catch (error) {
       console.error("Error updating product:", error);
@@ -214,7 +225,7 @@ export default function EditProductForm({
             name="unitPrice"
             type="number"
             step="0.01"
-            placeholder="VD: 1.349"
+            placeholder="VD: 1349đ"
             value={formData.unitPrice}
             onChange={(e) => handleInputChange("unitPrice", e.target.value)}
             error={!!errors.unitPrice}
