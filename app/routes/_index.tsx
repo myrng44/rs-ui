@@ -9,26 +9,30 @@ export default function Dashboard() {
   const stats = [
     {
       title: "Tổng Doanh Thu",
-      value: "₫2,345,000",
-      change: "+20.1%",
+      value: "1000đ",
+      change: "+1%",
+      changeType: "positive",
       color: "text-[--dashboard-primary]",
     },
     {
       title: "Đơn Hàng",
       value: "1,234",
       change: "+15.3%",
+      changeType: "positive",
       color: "text-[--dashboard-secondary]",
     },
     {
       title: "Sản Phẩm",
-      value: "856",
+      value: "100",
       change: "+8.2%",
+      changeType: "positive",
       color: "text-[--dashboard-tertiary]",
     },
     {
       title: "Khách Hàng",
       value: "432",
       change: "+12.5%",
+      changeType: "positive",
       color: "text-[--dashboard-accent]",
     },
   ];

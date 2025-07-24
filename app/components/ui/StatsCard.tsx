@@ -1,11 +1,12 @@
 import { Card } from './Card';
+import type {ReactNode} from "react";
 
 interface StatsCardProps {
   title: string;
   value:string;
   change?: string;
   changeType?: 'positive' | 'negative' | 'neutral';
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   color?: string;
 }
 
