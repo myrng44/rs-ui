@@ -8,7 +8,7 @@ export default function Navbar() {
   const [showDropdown, setShowDropdown] = useState(false);
 
   return (
-    <nav className="bg-gradient-to-br from-red-600 to-purple-600 shadow-sm border-b border-gray-200">
+    <nav className="bg-gradient-to-br from-[#7AE2CF] to-[#077A7D] shadow-sm border-b border-gray-200">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center space-x-2">

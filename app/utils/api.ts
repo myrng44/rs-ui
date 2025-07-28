@@ -1,4 +1,6 @@
-const API_BASE_URL = "https://rs-man-4-production.up.railway.app";
+import { API_PUBLIC_URL } from "config/env";
+import { API_SECURED_URL } from "config/env";
+import { API_BASE_URL } from "config/env";
 
 class ApiClient {
   private static instance: ApiClient;
@@ -30,7 +32,7 @@ class ApiClient {
     }
 
     try {
-      const response = await fetch(`${this.baseURL}/api/auth/refresh`, {
+      const response = await fetch(`${this.baseURL}${API_PUBLIC_URL}/auth/refresh`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,7 +61,7 @@ class ApiClient {
     options: RequestInit = {},
   ): Promise<Response> {
     const token = this.getAuthToken();
-    const url = `${this.baseURL}${endpoint}`;
+    const url = `${this.baseURL}${API_SECURED_URL}${endpoint}`;
 
     //prepare headers
     const headers: Record<string, string> = {

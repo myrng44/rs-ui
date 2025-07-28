@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
+import { API_PUBLIC_URL } from 'config/env';
+import {API_BASE_URL} from 'config/env';
 
 export interface User {
   id: number;
@@ -33,8 +35,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 interface AuthProviderProps {
   children: ReactNode;
 }
-//backend api base url
-const API_BASE_URL = "https://rs-man-4-production.up.railway.app";
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (storedToken) {
         try {
           //validate token with backend
-          const response = await fetch(`${API_BASE_URL}/api/auth/validate`, {
+          const response = await fetch(`${API_BASE_URL}${API_PUBLIC_URL}/auth/validate`, {
             headers: {
               Authorization: `Bearer ${storedToken}`,
             },
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (response.ok) {
             //token is valid, get user info
-            const userResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+            const userResponse = await fetch(`${API_BASE_URL}${API_PUBLIC_URL}/auth/me`, {
               headers: {
                 Authorization: `Bearer ${storedToken}`,
               },
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         loginData.storeId = storeId;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}${API_PUBLIC_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const tokenData = await response.json();
 
         //get user info neu successful login
-        const userResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        const userResponse = await fetch(`${API_BASE_URL}${API_PUBLIC_URL}/auth/me`, {
           headers: {
             Authorization: `Bearer ${tokenData.accessToken}`,
           },
@@ -160,7 +160,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      const response = await fetch(`${API_BASE_URL}${API_PUBLIC_URL}/auth/refresh`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -189,7 +189,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     //logout on backend
     if (storedRefreshToken) {
       try {
-        await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        await fetch(`${API_BASE_URL}${API_PUBLIC_URL}/auth/logout`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

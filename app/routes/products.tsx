@@ -8,6 +8,7 @@ import AddProductForm from "../components/forms/AddProductForm";
 import EditProductForm from "../components/forms/EditProductForm";
 import ProductTable from '../components/forms/ProductTable'
 import apiClient from "../utils/api";
+import {API_SECURED_URL} from "../../config/env";
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -23,7 +24,7 @@ export default function Products() {
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await apiClient.get("/api/v1/products?query=deleted:false");
+      const response = await apiClient.get(`/products`);
 
       if (response.ok) {
         const data: ProductListResponse = await response.json();
@@ -83,7 +84,7 @@ export default function Products() {
     }
 
     try {
-      const response = await apiClient.delete(`/api/v1/products/${productId}`);
+      const response = await apiClient.delete(`${API_SECURED_URL}/products/${productId}`);
 
       if (response.ok) {
         //refresh product list
