@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "~/components/layout";
 import { Button } from "~/components/button";
 import { Modal } from "~/components/modal";
 import { Input } from "~/components/input";
+import { Pagination } from "~/components/pagination";
+import { productsApi } from "~/utils/api";
 
 interface Product {
   id: number;
@@ -15,11 +17,12 @@ interface Product {
 }
 
 export default function Products() {
-  const [products, setProducts] = useState<Product[]>([
-    { id: 1, sku: "PROD001", name: "Sản phẩm A", description: "Mô tả sản phẩm A", unitPrice: 100000, categoryId: 1, supplierId: 1 },
-    { id: 2, sku: "PROD002", name: "Sản phẩm B", description: "Mô tả sản phẩm B", unitPrice: 200000, categoryId: 2, supplierId: 1 },
-    { id: 3, sku: "PROD003", name: "Sản phẩm C", description: "Mô tả sản phẩm C", unitPrice: 150000, categoryId: 1, supplierId: 2 },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [itemsPerPage] = useState(14);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -32,6 +35,35 @@ export default function Products() {
     categoryId: "",
     supplierId: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    loadProducts(page);
+  };
+
+  const loadProducts = async (page: number = currentPage) => {
+    try {
+      setLoading(true);
+      const offset = (page - 1) * itemsPerPage;
+      const response = await productsApi.getAll({
+        offset,
+        limit: itemsPerPage
+      });
+      setProducts(response.elements);
+      setTotalElements(response.totalElements);
+      setError("");
+    } catch (err: any) {
+      setError("Không thể tải danh sách sản phẩm");
+      console.error("Error loading products:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -44,19 +76,21 @@ export default function Products() {
     });
   };
 
-  const handleAdd = () => {
-    const newProduct: Product = {
-      id: Date.now(),
-      sku: formData.sku,
-      name: formData.name,
-      description: formData.description,
-      unitPrice: Number(formData.unitPrice),
-      categoryId: Number(formData.categoryId),
-      supplierId: Number(formData.supplierId),
-    };
-    setProducts([...products, newProduct]);
-    setIsAddModalOpen(false);
-    resetForm();
+  const handleAdd = async () => {
+    try {
+      setIsSubmitting(true);
+      setError("");
+      await productsApi.create(formData);
+      setIsAddModalOpen(false);
+      resetForm();
+      // Reload current page to show the new product
+      loadProducts(currentPage);
+    } catch (err: any) {
+      setError("Không thể thêm sản phẩm");
+      console.error("Error adding product:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEdit = (product: Product) => {
@@ -72,30 +106,47 @@ export default function Products() {
     setIsEditModalOpen(true);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingProduct) return;
 
-    setProducts(products.map(p =>
-      p.id === editingProduct.id
-        ? {
-          ...p,
-          sku: formData.sku,
-          name: formData.name,
-          description: formData.description,
-          unitPrice: Number(formData.unitPrice),
-          categoryId: Number(formData.categoryId),
-          supplierId: Number(formData.supplierId),
-        }
-        : p
-    ));
-    setIsEditModalOpen(false);
-    setEditingProduct(null);
-    resetForm();
+    try {
+      setIsSubmitting(true);
+      setError("");
+      await productsApi.update(editingProduct.id, {
+        name: formData.name,
+        description: formData.description,
+        unitPrice: formData.unitPrice,
+        categoryId: formData.categoryId,
+        supplierId: formData.supplierId,
+      });
+      setIsEditModalOpen(false);
+      setEditingProduct(null);
+      resetForm();
+      // Reload current page to show updated product
+      loadProducts(currentPage);
+    } catch (err: any) {
+      setError("Không thể cập nhật sản phẩm");
+      console.error("Error updating product:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) {
-      setProducts(products.filter(p => p.id !== id));
+      try {
+        setError("");
+        await productsApi.delete(id);
+        // Check if current page becomes empty after deletion
+        const newTotal = totalElements - 1;
+        const maxPage = Math.ceil(newTotal / itemsPerPage);
+        const targetPage = currentPage > maxPage ? Math.max(1, maxPage) : currentPage;
+        setCurrentPage(targetPage);
+        loadProducts(targetPage);
+      } catch (err: any) {
+        setError("Không thể xóa sản phẩm");
+        console.error("Error deleting product:", err);
+      }
     }
   };
 
@@ -162,10 +213,16 @@ export default function Products() {
             <h1 className="text-2xl font-bold text-gray-900">Quản lý Sản phẩm</h1>
             <p className="text-gray-600">Thêm, sửa, xóa và quản lý sản phẩm</p>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)}>
+          <Button onClick={() => setIsAddModalOpen(true)} disabled={loading}>
             Thêm sản phẩm
           </Button>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
 
         <div className="bg-surface rounded-lg shadow-md border border-gray-200">
           <div className="overflow-x-auto">
@@ -180,35 +237,61 @@ export default function Products() {
               </tr>
               </thead>
               <tbody>
-              {products.map((product) => (
-                <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-gray-900">{product.sku}</td>
-                  <td className="p-4 text-gray-900">{product.name}</td>
-                  <td className="p-4 text-gray-600">{product.description}</td>
-                  <td className="p-4 text-gray-900">{formatPrice(product.unitPrice)}</td>
-                  <td className="p-4">
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(product)}
-                      >
-                        Sửa
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => handleDelete(product.id)}
-                      >
-                        Xóa
-                      </Button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="text-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Đang tải...</p>
                   </td>
                 </tr>
-              ))}
+              ) : products.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center p-8 text-gray-600">
+                    Chưa có sản phẩm nào
+                  </td>
+                </tr>
+              ) : (
+                products.map((product) => (
+                  <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="p-4 font-medium text-gray-900">{product.sku}</td>
+                    <td className="p-4 text-gray-900">{product.name}</td>
+                    <td className="p-4 text-gray-600">{product.description}</td>
+                    <td className="p-4 text-gray-900">{formatPrice(product.unitPrice)}</td>
+                    <td className="p-4">
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(product)}
+                        >
+                          Sửa
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDelete(product.id)}
+                        >
+                          Xóa
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
               </tbody>
             </table>
           </div>
+
+          {!loading && products.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(totalElements / itemsPerPage)}
+              totalItems={totalElements}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              loading={loading}
+            />
+          )}
         </div>
 
         {/* Add Modal */}
@@ -230,8 +313,8 @@ export default function Products() {
               >
                 Hủy
               </Button>
-              <Button onClick={handleAdd}>
-                Thêm
+              <Button onClick={handleAdd} disabled={isSubmitting}>
+                {isSubmitting ? "Đang thêmm..." : "Thêm"}
               </Button>
             </>
           }
@@ -260,8 +343,8 @@ export default function Products() {
               >
                 Hủy
               </Button>
-              <Button onClick={handleUpdate}>
-                Cập nhật
+              <Button onClick={handleUpdate} disabled={isSubmitting}>
+                {isSubmitting ? "Đang cập nhật..." : "Cập nhật"}
               </Button>
             </>
           }

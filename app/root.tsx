@@ -97,9 +97,12 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import type { ReactNode } from "react";
 import type { LinksFunction } from "react-router";
 import "./app.css";
 import { AuthProvider } from "./contexts/authContext";
+import ProtectedRoute from "./components/protectedRoute";
+import { useLocation } from "react-router";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -114,12 +117,13 @@ export const links: LinksFunction = () => [
   },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
     <head>
       <meta charSet="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Store maN</title>
       <Meta />
       <Links />
     </head>
@@ -133,9 +137,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const isLoginPage = location.pathname === "/login";
+
   return (
     <AuthProvider>
-      <Outlet />
+      {isLoginPage ? (
+        <Outlet />
+      ) : (
+        <ProtectedRoute>
+          <Outlet />
+        </ProtectedRoute>
+      )}
     </AuthProvider>
   );
 }

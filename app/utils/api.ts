@@ -32,9 +32,11 @@ export const authApi = {
   login: async (credentials: { username: string; password: string; storeId: string }) => {
     return apiCall<{
       accessToken: string;
-      refreshToken: string;
       tokenType: string;
+      refreshToken: string;
+      issuedAt: number;
       expiresIn: number;
+      expiresAt: number;
     }>("/public/rest/v1/auth/login", {
       method: "POST",
       body: JSON.stringify(credentials),
@@ -56,8 +58,10 @@ export const authApi = {
 
 // Products API
 export const productsApi = {
-  getAll: async (params?: { offset?: number; limit?: number }) => {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
+    if (params?.query) searchParams.append("query", params.query);
+    if (params?.sort) searchParams.append("sort", params.sort);
     if (params?.offset) searchParams.append("offset", params.offset.toString());
     if (params?.limit) searchParams.append("limit", params.limit.toString());
 
@@ -76,6 +80,18 @@ export const productsApi = {
       }>;
       totalElements: number;
     }>(endpoint);
+  },
+
+  getById: async (id: number) => {
+    return apiCall<{
+      id: number;
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: number;
+      categoryId: number;
+      supplierId: number;
+    }>(`/secured/rest/v1/products/${id}`);
   },
 
   create: async (product: {

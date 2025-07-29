@@ -90,12 +90,12 @@ export default function Login() {
             className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
             disabled={isLoading}
           >
-            {isLoading ? "��ang đăng nhập..." : "Đăng nhập"}
+            {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
           </Button>
 
           <div className="text-center">
             <button type="button" className="text-sm text-gray-500 hover:text-gray-700">
-              Hỗ trợng quên tín tích hàng Store maN?
+              Hỗ trợ bởi đội ngũ Store maN?
             </button>
           </div>
         </form>
