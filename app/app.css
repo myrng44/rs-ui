@@ -46,7 +46,7 @@
 }
 
 html {
-  font-family: var(--font-family-sans);
+  font-family: var(--font-family-sans), monospace;
 }
 
 body {

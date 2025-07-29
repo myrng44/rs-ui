@@ -1,4 +1,4 @@
-import { useState } from "react";
+import {type FormEvent, useState} from "react";
 import { Button } from "~/components/button";
 import { Input } from "~/components/input";
 import { authApi } from "~/utils/api";
@@ -12,7 +12,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");

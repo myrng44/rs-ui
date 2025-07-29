@@ -19,7 +19,7 @@ export default function Home() {
           <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
             <div className="text-3xl mb-4">📊</div>
             <h3 className="text-lg font-semibold mb-2">Dashboard</h3>
-            <p className="text-gray-600 mb-4">Xem tổng quan và th���ng kê kinh doanh</p>
+            <p className="text-gray-600 mb-4">Xem tổng quan và thống kê kinh doanh</p>
             <Link to="/dashboard">
               <Button size="sm">Xem Dashboard</Button>
             </Link>
