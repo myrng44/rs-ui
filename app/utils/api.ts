@@ -1,3 +1,4 @@
+
 const API_BASE_URL = "http://localhost:8080";
 
 interface ApiError extends Error {
@@ -27,7 +28,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   return response.json();
 }
 
-// Auth API
+//auth API
 export const authApi = {
   login: async (credentials: { username: string; password: string; storeId: string }) => {
     return apiCall<{
@@ -56,7 +57,7 @@ export const authApi = {
   },
 };
 
-// Products API
+//products API
 export const productsApi = {
   getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
@@ -162,11 +163,276 @@ export const productsApi = {
       throw error;
     }
 
-    // Handle empty response for DELETE (204 No Content)
+    //handle empty response for DELETE (204 No Content)
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
       return response.json();
     }
     return null;
+  },
+};
+
+//orders API
+export const ordersApi = {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.query) searchParams.append("query", params.query);
+    if (params?.sort) searchParams.append("sort", params.sort);
+    if (params?.offset) searchParams.append("offset", params.offset.toString());
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+
+    const queryString = searchParams.toString();
+    const endpoint = `/secured/rest/v1/orders${queryString ? `?${queryString}` : ""}`;
+
+    return apiCall<{
+      elements: Array<{
+        id: string;
+        customerId: number;
+        storeId: number;
+        voucherId: number | null;
+        finalPrice: number;
+        note: string;
+        paymentId: number;
+      }>;
+      totalElements: number;
+    }>(endpoint);
+  },
+
+  getById: async (id: string) => {
+    return apiCall<{
+      id: string;
+      customerId: number;
+      storeId: number;
+      voucherId: number | null;
+      finalPrice: number;
+      note: string;
+      paymentId: number;
+    }>(`/secured/rest/v1/orders/${id}`);
+  },
+
+  create: async (order: {
+    customerId: string;
+    storeId: string;
+    voucherId: string;
+    note: string;
+    paymentId: string;
+  }) => {
+    return apiCall<{
+      id: string;
+      customerId: number;
+      storeId: number;
+      voucherId: number | null;
+      finalPrice: number;
+      note: string;
+      paymentId: number;
+    }>("/secured/rest/v1/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        ...order,
+        customerId: parseInt(order.customerId),
+        storeId: parseInt(order.storeId),
+        voucherId: order.voucherId ? parseInt(order.voucherId) : null,
+        paymentId: parseInt(order.paymentId),
+      }),
+    });
+  },
+
+  update: async (id: string, order: {
+    customerId: string;
+    storeId: string;
+    voucherId: string;
+    note: string;
+    paymentId: string;
+  }) => {
+    return apiCall<{
+      id: string;
+      customerId: number;
+      storeId: number;
+      voucherId: number | null;
+      finalPrice: number;
+      note: string;
+      paymentId: number;
+    }>(`/secured/rest/v1/orders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        ...order,
+        customerId: parseInt(order.customerId),
+        storeId: parseInt(order.storeId),
+        voucherId: order.voucherId ? parseInt(order.voucherId) : null,
+        paymentId: parseInt(order.paymentId),
+      }),
+    });
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/orders/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    //handle empty response for DELETE (204 No Content)
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      return response.json();
+    }
+    return null;
+  },
+
+  getCount: async (params?: { query?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.query) searchParams.append("query", params.query);
+
+    const queryString = searchParams.toString();
+    const endpoint = `/secured/rest/v1/orders/count${queryString ? `?${queryString}` : ""}`;
+
+    return apiCall<number>(endpoint);
+  },
+};
+
+//dashboard API
+export const dashboardApi = {
+  getSummary: async () => {
+    return apiCall<{
+      totalProducts: number;
+      todayOrders: number;
+      monthlyRevenue: number;
+      totalCustomer: number;
+    }>("/secured/rest/v1/summary");
+  },
+
+  getTopProducts: async (days: number = 30, noProducts: number = 4) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append("days", days.toString());
+    searchParams.append("noProducts", noProducts.toString());
+
+    const queryString = searchParams.toString();
+    const endpoint = `/secured/rest/v1/order-details/most?${queryString}`;
+
+    return apiCall<Array<{
+      id: string;
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: number;
+      categoryId: number;
+      supplierId: number;
+    }>>(endpoint);
+  },
+};
+
+//storeStock API
+export const storeStockApi = {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.query) searchParams.append("query", params.query);
+    if (params?.sort) searchParams.append("sort", params.sort);
+    if (params?.offset) searchParams.append("offset", params.offset.toString());
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+
+    const queryString = searchParams.toString();
+    const endpoint = `/secured/rest/v1/store-stock${queryString ? `?${queryString}` : ""}`;
+
+    return apiCall<{
+      elements: Array<{
+        id: string;
+        productId: number;
+        storeId: number;
+        quantity: number;
+      }>;
+      totalElements: number;
+    }>(endpoint);
+  },
+
+  getById: async (id: string) => {
+    return apiCall<{
+      id: string;
+      productId: number;
+      storeId: number;
+      quantity: number;
+    }>(`/secured/rest/v1/store-stock/${id}`);
+  },
+
+  create: async (stock: {
+    productId: string;
+    storeId: string;
+    quantity: string;
+  }) => {
+    return apiCall<{
+      id: string;
+      productId: number;
+      storeId: number;
+      quantity: number;
+    }>("/secured/rest/v1/store-stock", {
+      method: "POST",
+      body: JSON.stringify({
+        productId: parseInt(stock.productId),
+        storeId: parseInt(stock.storeId),
+        quantity: parseInt(stock.quantity),
+      }),
+    });
+  },
+
+  update: async (id: string, stock: {
+    productId: string;
+    storeId: string;
+    quantity: string;
+  }) => {
+    return apiCall<{
+      id: string;
+      productId: number;
+      storeId: number;
+      quantity: number;
+    }>(`/secured/rest/v1/store-stock/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        productId: parseInt(stock.productId),
+        storeId: parseInt(stock.storeId),
+        quantity: parseInt(stock.quantity),
+      }),
+    });
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/store-stock/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      return response.json();
+    }
+    return null;
+  },
+
+  getFiltered: async (storeId: number) => {
+    return apiCall<{
+      elements: Array<{
+        id: string;
+        productId: number;
+        storeId: number;
+        quantity: number;
+      }>;
+      totalElements: number;
+    }>("/secured/rest/v1/store-stock/filtered", {
+      method: "POST",
+      body: JSON.stringify({ storeId }),
+    });
   },
 };

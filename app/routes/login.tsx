@@ -37,9 +37,8 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-primary via-accent to-secondary flex items-center justify-center p-4">
       <div className="bg-surface rounded-lg shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-lg mx-auto mb-4 flex items-center justify-center">
-            <span className="text-2xl text-white font-bold">RS</span>
-          </div>
+          <img className="w-20 h-20 rounded-lg mx-auto mb-4 flex items-center justify-center" src={"https://www.circlek.com.vn/wp-content/themes/circlek//images/img/ckclub.png"} >
+          </img>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Đăng nhập Store maN</h1>
           <p className="text-gray-600">Vui lòng nhập thông tin đăng nhập</p>
         </div>

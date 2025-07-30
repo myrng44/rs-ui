@@ -7,7 +7,7 @@ export default function About() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Về chúng tôi</h1>
           <p className="text-xl text-gray-600">
-            RS Management - Hệ thống quản lý cửa hàng toàn diện
+            Store maN - Hệ thống quản lý cửa hàng toàn diện
           </p>
         </div>
 
@@ -15,7 +15,7 @@ export default function About() {
           <div className="bg-surface p-8 rounded-lg shadow-md border border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Tầm nhìn</h2>
             <p className="text-gray-600 leading-relaxed">
-              Chúng tôi mong muốn trở thành giải pháp quản lý cửa hàng hàng đầu,
+              Chúng tôi mong muốn trở thành giải pháp quản lý cửa hàng đáng tin cậy,
               giúp các doanh nghiệp tối ưu hóa quy trình kinh doanh và nâng cao
               hiệu quả vận hành.
             </p>
@@ -56,7 +56,7 @@ export default function About() {
             <div className="text-center">
               <div className="text-3xl mb-3">🏭</div>
               <h3 className="font-semibold text-gray-900 mb-2">Nhà cung cấp</h3>
-              <p className="text-sm text-gray-600">Quản lý quan hệ đối tác</p>
+              <p className="text-sm text-gray-600">Quản lý đối tác, nhà phân phối</p>
             </div>
             <div className="text-center">
               <div className="text-3xl mb-3">🎫</div>

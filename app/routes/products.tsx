@@ -87,7 +87,7 @@ export default function Products() {
       await productsApi.create(formData);
       setIsAddModalOpen(false);
       resetForm();
-      // Reload current page to show the new product
+      //reload current page -> show the new product
       loadProducts(currentPage);
     } catch (err: any) {
       setError("Không thể thêm sản phẩm");

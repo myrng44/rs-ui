@@ -1,25 +1,80 @@
+import { useState, useEffect } from "react";
 import { Layout } from "~/components/layout";
+import { dashboardApi } from "~/utils/api";
+
+interface DashboardSummary {
+  totalProducts: number;
+  todayOrders: number;
+  monthlyRevenue: number;
+  totalCustomer: number;
+}
+
+interface TopProduct {
+  id: string;
+  name: string;
+  unitPrice: number;
+}
 
 export default function Dashboard() {
-  const stats = [
-    { label: "Tổng sản phẩm", value: "1,234", change: "+12%", icon: "📦" },
-    { label: "Đơn hàng hôm nay", value: "45", change: "+8%", icon: "🛒" },
-    { label: "Doanh thu tháng", value: "₫45,678,900", change: "+15%", icon: "💰" },
-    { label: "Khách hàng", value: "567", change: "+5%", icon: "👥" },
-  ];
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [summaryData, productsData] = await Promise.all([
+        dashboardApi.getSummary(),
+        dashboardApi.getTopProducts(7, 4)
+      ]);
+
+      setSummary(summaryData);
+      setTopProducts(productsData.map(product => ({
+        id: product.id,
+        name: product.name,
+        unitPrice: product.unitPrice
+      })));
+      setError("");
+    } catch (err: any) {
+      setError("Không thể tải dữ liệu dashboard");
+      console.error("Error loading dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  };
+
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('vi-VN').format(num);
+  };
+
+  const getStatsData = () => {
+    if (!summary) return [];
+
+    return [
+      { label: "Tổng sản phẩm", value: formatNumber(summary.totalProducts), icon: "📦" },
+      { label: "Đơn hàng hôm nay", value: formatNumber(summary.todayOrders), icon: "🛒" },
+      { label: "Doanh thu tháng", value: formatPrice(summary.monthlyRevenue), icon: "💰" },
+      { label: "Tổng khách hàng", value: formatNumber(summary.totalCustomer), icon: "👥" },
+    ];
+  };
 
   const recentOrders = [
     { id: "ORD001", customer: "Nguyễn Văn A", total: "₫450,000", status: "Đã giao" },
     { id: "ORD002", customer: "Trần Thị B", total: "₫320,000", status: "Đang xử lý" },
     { id: "ORD003", customer: "Lê Văn C", total: "₫890,000", status: "Đã xác nhận" },
     { id: "ORD004", customer: "Phạm Thị D", total: "₫156,000", status: "Đang giao" },
-  ];
-
-  const topProducts = [
-    { name: "Sản phẩm A", sold: 145, revenue: "₫2,900,000" },
-    { name: "Sản phẩm B", sold: 123, revenue: "₫2,460,000" },
-    { name: "Sản phẩm C", sold: 98, revenue: "₫1,960,000" },
-    { name: "Sản phẩm D", sold: 87, revenue: "₫1,740,000" },
   ];
 
   return (
@@ -30,20 +85,36 @@ export default function Dashboard() {
           <p className="text-gray-600">Tổng quan kinh doanh và thống kê</p>
         </div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
-            <div key={index} className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-success">{stat.change}</p>
+          {loading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2 mb-1"></div>
                 </div>
-                <div className="text-3xl">{stat.icon}</div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            getStatsData().map((stat, index) => (
+              <div key={index} className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">{stat.label}</p>
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  </div>
+                  <div className="text-3xl">{stat.icon}</div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -77,17 +148,35 @@ export default function Dashboard() {
           <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
             <h2 className="text-lg font-semibold mb-4">Sản phẩm bán chạy</h2>
             <div className="space-y-3">
-              {topProducts.map((product, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{product.name}</p>
-                    <p className="text-sm text-gray-600">{product.sold} đã bán</p>
+              {loading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="animate-pulse flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                    <div className="animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-900">{product.revenue}</p>
+                ))
+              ) : topProducts.length > 0 ? (
+                topProducts.map((product, index) => (
+                  <div key={product.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">{product.name}</p>
+                      <p className="text-sm text-gray-600">Top #{index + 1}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">{formatPrice(product.unitPrice)}</p>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center p-4 text-gray-600">
+                  Không có dữ liệu sản phẩm
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
