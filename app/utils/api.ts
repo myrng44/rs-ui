@@ -70,7 +70,7 @@ export const productsApi = {
 
     return apiCall<{
       elements: Array<{
-        id: number;
+        id: string;
         sku: string;
         name: string;
         description: string;
@@ -82,9 +82,9 @@ export const productsApi = {
     }>(endpoint);
   },
 
-  getById: async (id: number) => {
+  getById: async (id: string) => {
     return apiCall<{
-      id: number;
+      id: string;
       sku: string;
       name: string;
       description: string;
@@ -103,7 +103,7 @@ export const productsApi = {
     supplierId: string;
   }) => {
     return apiCall<{
-      id: number;
+      id: string;
       sku: string;
       name: string;
       description: string;
@@ -121,7 +121,8 @@ export const productsApi = {
     });
   },
 
-  update: async (id: number, product: {
+  update: async (id: string, product: {
+    sku: string;
     name: string;
     description: string;
     unitPrice: string;
@@ -129,7 +130,7 @@ export const productsApi = {
     supplierId: string;
   }) => {
     return apiCall<{
-      id: number;
+      id: string;
       sku: string;
       name: string;
       description: string;
@@ -147,9 +148,25 @@ export const productsApi = {
     });
   },
 
-  delete: async (id: number) => {
-    return apiCall(`/secured/rest/v1/products/${id}`, {
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/products/${id}`, {
       method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+      },
     });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    // Handle empty response for DELETE (204 No Content)
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      return response.json();
+    }
+    return null;
   },
 };

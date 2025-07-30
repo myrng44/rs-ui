@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Layout } from "~/components/layout";
 import { Button } from "~/components/button";
 import { Modal } from "~/components/modal";
-import { Input } from "~/components/input";
 import { Pagination } from "~/components/pagination";
+import { ProductForm } from "~/components/productForm";
 import { productsApi } from "~/utils/api";
 
 interface Product {
-  id: number;
+  id: string;
   sku: string;
   name: string;
   description: string;
@@ -45,6 +45,10 @@ export default function Products() {
     setCurrentPage(page);
     loadProducts(page);
   };
+
+  const handleFormChange = useCallback((field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
 
   const loadProducts = async (page: number = currentPage) => {
     try {
@@ -113,6 +117,7 @@ export default function Products() {
       setIsSubmitting(true);
       setError("");
       await productsApi.update(editingProduct.id, {
+        sku: formData.sku,
         name: formData.name,
         description: formData.description,
         unitPrice: formData.unitPrice,
@@ -132,7 +137,7 @@ export default function Products() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) {
       try {
         setError("");
@@ -157,53 +162,7 @@ export default function Products() {
     }).format(price);
   };
 
-  const ProductForm = () => (
-    <div className="space-y-4">
-      <Input
-        label="Mã SKU"
-        value={formData.sku}
-        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-        placeholder="Nhập mã SKU"
-      />
-      <Input
-        label="Tên sản phẩm"
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        placeholder="Nhập tên sản phẩm"
-      />
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Nhập mô tả sản phẩm"
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-        />
-      </div>
-      <Input
-        label="Giá bán"
-        type="number"
-        value={formData.unitPrice}
-        onChange={(e) => setFormData({ ...formData, unitPrice: e.target.value })}
-        placeholder="Nhập giá bán"
-      />
-      <Input
-        label="Danh mục ID"
-        type="number"
-        value={formData.categoryId}
-        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-        placeholder="Nhập ID danh mục"
-      />
-      <Input
-        label="Nhà cung cấp ID"
-        type="number"
-        value={formData.supplierId}
-        onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
-        placeholder="Nhập ID nhà cung cấp"
-      />
-    </div>
-  );
+
 
   return (
     <Layout>
@@ -314,12 +273,12 @@ export default function Products() {
                 Hủy
               </Button>
               <Button onClick={handleAdd} disabled={isSubmitting}>
-                {isSubmitting ? "Đang thêmm..." : "Thêm"}
+                {isSubmitting ? "Đang thêm..." : "Thêm"}
               </Button>
             </>
           }
         >
-          <ProductForm />
+          <ProductForm formData={formData} onChange={handleFormChange} />
         </Modal>
 
         {/* Edit Modal */}
@@ -349,7 +308,7 @@ export default function Products() {
             </>
           }
         >
-          <ProductForm />
+          <ProductForm formData={formData} onChange={handleFormChange} />
         </Modal>
       </div>
     </Layout>

@@ -63,12 +63,6 @@ export default function Login() {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               required
             />
-            <button
-              type="button"
-              className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
-            >
-              👁
-            </button>
           </div>
 
           <Input
@@ -95,7 +89,7 @@ export default function Login() {
 
           <div className="text-center">
             <button type="button" className="text-sm text-gray-500 hover:text-gray-700">
-              Hỗ trợ bởi đội ngũ Store maN?
+              <a href={"https://forms.office.com/r/DkAixzbSjg"}>Gửi yêu cầu hỗ trợ?</a>
             </button>
           </div>
         </form>
