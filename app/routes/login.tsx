@@ -102,7 +102,7 @@ export default function Login() {
             <button type="button" className="text-sm text-gray-500 hover:text-gray-700">
               <a href={"https://forms.office.com/r/DkAixzbSjg"}>Gửi yêu cầu hỗ trợ?</a>
             </button>
-            <div>
+            <div className="bg-emerald-100 rounded-lg w-xs justify-center items-center mx-auto p-2">
               <p>(TEST)account: admin001</p>
               <p>(TEST)password: 123456abc</p>
             </div>
