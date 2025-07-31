@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "~/components/layout";
 import { Button } from "~/components/button";
+import Dropdown from "~/components/dropdown";
 import { Modal } from "~/components/modal";
 import { Pagination } from "~/components/pagination";
 import { ProductForm } from "~/components/productForm";
@@ -22,7 +23,7 @@ export default function Products() {
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
-  const [itemsPerPage] = useState(14);
+  const [itemsPerPage] = useState(10);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -147,7 +148,7 @@ export default function Products() {
         const maxPage = Math.ceil(newTotal / itemsPerPage);
         const targetPage = currentPage > maxPage ? Math.max(1, maxPage) : currentPage;
         setCurrentPage(targetPage);
-        loadProducts(targetPage);
+        loadProducts(targetPage); //refresh sau khi delete
       } catch (err: any) {
         setError("Không thể xóa sản phẩm");
         console.error("Error deleting product:", err);

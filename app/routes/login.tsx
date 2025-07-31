@@ -1,6 +1,7 @@
 import {type FormEvent, useState} from "react";
 import { Button } from "~/components/button";
 import { Input } from "~/components/input";
+import Dropdown from "~/components/dropdown";
 import { authApi } from "~/utils/api";
 
 export default function Login() {
@@ -9,6 +10,17 @@ export default function Login() {
     password: "",
     storeId: "1",
   });
+  const storeOptions = [
+    { value: "1", label: "Circle K - CS1 Tôn Đức Thắng, Đống Đa" },
+    { value: "2", label: "Circle K - CS24 - Bùi Đình Túy, Bình Thạnh" },
+    { value: "3", label: "Circle K - CS4 - Từ Hoa, Tây Hồ" },
+    { value: "4", label: "Circle K - CS161 - Lê Hồng Phong, Đà Lạt" },
+    { value: "5", label: "Circle K - CS44 - TEST1"},
+    { value: "6", label: "Circle K - CS44 - TEST2"},
+    { value: "7", label: "Circle K - CS44 - TEST3"},
+    { value: "8", label: "Circle K - CS44 - TEST4"},
+    { value: "9", label: "Circle K - CS44 - TEST5"},
+  ];
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -37,7 +49,7 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-primary via-accent to-secondary flex items-center justify-center p-4">
       <div className="bg-surface rounded-lg shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <img className="w-20 h-20 rounded-lg mx-auto mb-4 flex items-center justify-center" src={"https://www.circlek.com.vn/wp-content/themes/circlek//images/img/ckclub.png"} >
+          <img className="w-20 h-20 rounded-lg mx-auto mb-4 flex items-center justify-center" src={"https://www.circlek.com.vn/wp-content/themes/circlek//images/img/ckclub.png"} alt={"Store maN logo"} >
           </img>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Đăng nhập Store maN</h1>
           <p className="text-gray-600">Vui lòng nhập thông tin đăng nhập</p>
@@ -45,7 +57,7 @@ export default function Login() {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <Input
-            label="Username *"
+            label="Username"
             type="text"
             placeholder="Nhập username"
             value={formData.username}
@@ -55,7 +67,7 @@ export default function Login() {
 
           <div className="relative">
             <Input
-              label="Password *"
+              label="Password"
               type="password"
               placeholder="Nhập password"
               value={formData.password}
@@ -64,12 +76,12 @@ export default function Login() {
             />
           </div>
 
-          <Input
-            label="Store ID (Tùy chọn)"
-            type="text"
-            placeholder="Nhập Store ID"
+          <Dropdown
+            label="Store"
             value={formData.storeId}
             onChange={(e) => setFormData({ ...formData, storeId: e.target.value })}
+            options={storeOptions}
+            required
           />
 
           {error && (
@@ -90,6 +102,10 @@ export default function Login() {
             <button type="button" className="text-sm text-gray-500 hover:text-gray-700">
               <a href={"https://forms.office.com/r/DkAixzbSjg"}>Gửi yêu cầu hỗ trợ?</a>
             </button>
+            <div>
+              <p>(TEST)account: admin001</p>
+              <p>(TEST)password: 123456abc</p>
+            </div>
           </div>
         </form>
       </div>

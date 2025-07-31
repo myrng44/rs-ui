@@ -1,4 +1,6 @@
 import { Input } from "./input";
+import Dropdown from "~/components/dropdown";
+import {useState} from "react";
 
 interface ProductFormData {
   sku: string;
@@ -15,6 +17,15 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ formData, onChange }: ProductFormProps) {
+  const categoryOptions = [
+    {value: "001", label: "Trà"},
+    {value: "002", label: "Rượu"},
+  ]
+  const supplierOptions = [
+    {value: "001", label: "Vinamilk"},
+    {value: "002", label: "Boncha"},
+    {value: "003", label: "Nestle"},
+  ]
   return (
     <div className="space-y-4">
       <Input
@@ -46,19 +57,15 @@ export function ProductForm({ formData, onChange }: ProductFormProps) {
         onChange={(e) => onChange("unitPrice", e.target.value)}
         placeholder="Nhập giá bán"
       />
-      <Input
-        label="Danh mục ID"
-        type="number"
-        value={formData.categoryId}
-        onChange={(e) => onChange("categoryId", e.target.value)}
-        placeholder="Nhập ID danh mục"
+      <Dropdown label={"Danh mục"}
+                value={formData.categoryId}
+                onChange={(e) => onChange("categoryId", e.target.value)}
+                options={categoryOptions}
       />
-      <Input
-        label="Nhà cung cấp ID"
-        type="number"
-        value={formData.supplierId}
-        onChange={(e) => onChange("supplierId", e.target.value)}
-        placeholder="Nhập ID nhà cung cấp"
+      <Dropdown label={"Nhà phân phối"}
+                value={formData.supplierId}
+                onChange={(e) => onChange("supplierId", e.target.value)}
+                options={supplierOptions}
       />
     </div>
   );

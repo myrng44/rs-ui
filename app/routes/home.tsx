@@ -8,7 +8,7 @@ export default function Home() {
       <div className="space-y-8">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Chào mừng đến với RS Management
+            Chào mừng đến với Store maN
           </h1>
           <p className="text-xl text-gray-600 mb-8">
             Hệ thống quản lý cửa hàng toàn diện
