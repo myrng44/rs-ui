@@ -1,5 +1,5 @@
 
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = "https://rs-man-4-production.up.railway.app";
 
 interface ApiError extends Error {
   status?: number;

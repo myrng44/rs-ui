@@ -97,7 +97,7 @@ export default function Products() {
       setIsSubmitting(false);
     }
   };
-
+122
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     setFormData({
