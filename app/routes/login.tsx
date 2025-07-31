@@ -33,7 +33,7 @@ export default function Login() {
       const data = await authApi.login(formData);
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
-      window.location.href = "/dashboard";
+      window.location.href = "/";
     } catch (err: any) {
       if (err.status === 401) {
         setError("Tên đăng nhập hoặc mật khẩu không đúng");
