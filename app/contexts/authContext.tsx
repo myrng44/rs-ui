@@ -33,7 +33,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (token: string) => {
     try {
-      const response = await fetch("https://rs-man-4-production.up.railway.app/public/rest/v1/auth/me", {
+      const response = await fetch("http://localhost:8080/public/rest/v1/auth/me", {
         headers: {
           "Authorization": `Bearer ${token}`,
         },

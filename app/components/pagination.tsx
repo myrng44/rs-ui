@@ -52,7 +52,7 @@ export function Pagination({
         <span>
           Hiển thị <span className="font-medium">{startItem}</span> đến{" "}
           <span className="font-medium">{endItem}</span> trong tổng số{" "}
-          <span className="font-medium">{totalItems}</span> sản phẩm
+          <span className="font-medium">{totalItems}</span> kết quả
         </span>
       </div>
 

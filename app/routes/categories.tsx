@@ -1,22 +1,283 @@
 import { Layout } from "~/components/layout";
+import {useCallback, useEffect, useState} from "react";
+import {categoryApi} from "~/utils/api";
+import {Button} from "~/components/button";
+import {Pagination} from "~/components/pagination";
+import {Modal} from "~/components/modal";
+import {CategoryForm} from "~/components/categoryForm";
+
+interface Category {
+  id: string;
+  name: string;
+  description: string;
+}
 
 export default function Categories() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [itemsPerPage] = useState(10);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async (page: number = currentPage) => {
+    try {
+      setLoading(true);
+      const offset = (page - 1) * itemsPerPage;
+      const sort = "-lastUpdatedTime";
+      const response = await categoryApi.getAll({
+        offset,
+        limit: itemsPerPage,
+        sort: sort,
+      });
+      setCategories(response.elements);
+      setTotalElements(response.totalElements);
+      setError("");
+    } catch (error : any) {
+      setError("Không thể tải danh sách các danh mục");
+      console.log("Error loading categories:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    loadCategories(page);
+  }
+
+  const handleFormChange = useCallback((field: keyof typeof  formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+    });
+  };
+
+  const handleAdd = async () => {
+    try {
+      setIsSubmitting(true);
+      setError("");
+      await categoryApi.create(formData);
+      setIsAddModalOpen(false);
+      resetForm();
+      //preload current page -> show new category
+      await loadCategories();
+    } catch (error: any) {
+      setError("Không thể thêm danh mục");
+      console.log("Error adding product:",error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      description: category.description,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingCategory) return;
+
+    try {
+      setIsSubmitting(true);
+      setError("");
+      await categoryApi.update(editingCategory.id, {
+        name: formData.name,
+        description: formData.description,
+      });
+      setIsEditModalOpen(false);
+      setEditingCategory(null);
+      resetForm();
+      //reload current page to show updated category
+      await loadCategories(currentPage);
+    } catch (error: any) {
+      setError("Không thể cập nhật danh mục");
+      console.log("Error updating category:",error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Xác nhận cóa danh mục này?")) {
+      try {
+        setError("");
+        await categoryApi.delete(id);
+        //check if current page is empty after delete category
+        const newTotal = totalElements - 1;
+        const maxPage = Math.ceil(newTotal / itemsPerPage);
+        const targetPage = currentPage > maxPage ? Math.max(1, maxPage) : currentPage;
+        setCurrentPage(targetPage);
+        await loadCategories(targetPage); //refresh after delete
+      } catch (error: any) {
+        setError("Không thể xóa danh mục");
+        console.log("Error deleting category:",error);
+      }
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Danh mục</h1>
-          <p className="text-gray-600">Thêm, sửa, xóa và quản lý danh mục sản phẩm</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Quản lý Danh Mục</h1>
+            <p className="text-gray-600">Thêm, sửa, xóa và quản lý danh mục</p>
+          </div>
+          <Button onClick={() => setIsAddModalOpen(true)} disabled={loading}>
+            Thêm danh mục mới
+          </Button>
         </div>
 
-        <div className="bg-surface p-12 rounded-lg shadow-md border border-gray-200 text-center">
-          <div className="text-6xl mb-4">📂</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Trang Danh mục</h2>
-          <p className="text-gray-600 mb-4">Tính năng này đang được phát triển.</p>
-          <p className="text-sm text-gray-500">
-            Hãy tiếp tục yêu cầu để hoàn thiện trang này với đầy đủ chức năng CRUD.
-          </p>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        <div className="bg-surface rounded-lg shadow-md border border-gray-200">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left p-4 font-semibold text-gray-900">Tên danh mục</th>
+                <th className="text-left p-4 font-semibold text-gray-900">Mô tả</th>
+                <th className="text-left p-4 font-semibold text-gray-900">Thao tác</th>
+              </tr>
+              </thead>
+              <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="text-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Đang tải...</p>
+                  </td>
+                </tr>
+              ) : categories.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center p-8 text-gray-600">
+                    Chưa có sản phẩm nào
+                  </td>
+                </tr>
+              ) : (
+                categories.map((category) => (
+                  <tr key={category.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="p-4 text-gray-900">{category.name}</td>
+                    <td className="p-4 text-gray-600">{category.description}</td>
+                    <td className="p-4">
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(category)}
+                        >
+                          Sửa
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDelete(category.id)}
+                        >
+                          Xóa
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+              </tbody>
+            </table>
+          </div>
+
+          {!loading && categories.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(totalElements / itemsPerPage)}
+              totalItems={totalElements}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              loading={loading}
+            />
+          )}
         </div>
+
+        {/* Add Modal */}
+        <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            resetForm();
+          }}
+          title="Thêm danh mục mới"
+          footer={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  resetForm();
+                }}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleAdd} disabled={isSubmitting}>
+                {isSubmitting ? "Đang thêm..." : "Thêm"}
+              </Button>
+            </>
+          }
+        >
+          <CategoryForm formData={formData} onChange={handleFormChange} />
+        </Modal>
+
+        {/* Edit Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingCategory(null);
+            resetForm();
+          }}
+          title="Chỉnh sửa sản phẩm"
+          footer={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingCategory(null);
+                  resetForm();
+                }}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleUpdate} disabled={isSubmitting}>
+                {isSubmitting ? "Đang cập nhật..." : "Cập nhật"}
+              </Button>
+            </>
+          }
+        >
+          <CategoryForm formData={formData} onChange={handleFormChange} />
+        </Modal>
       </div>
     </Layout>
   );

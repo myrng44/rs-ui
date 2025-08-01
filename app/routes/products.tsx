@@ -55,9 +55,11 @@ export default function Products() {
     try {
       setLoading(true);
       const offset = (page - 1) * itemsPerPage;
+      const sort = "-createdTime";
       const response = await productsApi.getAll({
         offset,
-        limit: itemsPerPage
+        limit: itemsPerPage,
+        sort: sort,
       });
       setProducts(response.elements);
       setTotalElements(response.totalElements);
@@ -97,7 +99,6 @@ export default function Products() {
       setIsSubmitting(false);
     }
   };
-122
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     setFormData({
@@ -139,7 +140,7 @@ export default function Products() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) {
+    if (window.confirm("Xác nhận xóa sản phẩm này?")) {
       try {
         setError("");
         await productsApi.delete(id);

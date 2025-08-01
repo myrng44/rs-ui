@@ -1,6 +1,5 @@
 import { Input } from "./input";
 import Dropdown from "~/components/dropdown";
-import {useState} from "react";
 
 interface ProductFormData {
   sku: string;
@@ -18,7 +17,7 @@ interface ProductFormProps {
 
 export function ProductForm({ formData, onChange }: ProductFormProps) {
   const categoryOptions = [
-    {value: "001", label: "Trà"},
+    {value: "603630681414832128", label: "Trà"},
     {value: "002", label: "Rượu"},
   ]
   const supplierOptions = [
