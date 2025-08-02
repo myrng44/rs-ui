@@ -400,7 +400,7 @@ export const dashboardApi = {
     searchParams.append("noProducts", noProducts.toString());
 
     const queryString = searchParams.toString();
-    const endpoint = `/secured/rest/v1/order-details/most?${queryString}`;
+    const endpoint = `/secured/rest/v1/orders/most?${queryString}`;
 
     return apiCall<Array<{
       id: string;

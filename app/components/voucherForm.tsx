@@ -46,7 +46,8 @@ export function VoucherForm({ formData, onChange }: VoucherFormProps) {
         onChange={(e) => onChange("discountValue", e.target.value)}
         placeholder="Nhập giá trị của mã giảm giá (tùy chọn)"
       />
-      <CustomDateTimePicker />
+      <CustomDateTimePicker label={"Thời gian bắt đầu hiệu lực"} />
+      <CustomDateTimePicker label={"Thời gian kết thúc"} />
     </div>
   );
 }
