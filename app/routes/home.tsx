@@ -1,6 +1,6 @@
 import { Link } from "react-router";
-import { Layout } from "~/components/layout";
-import { Button } from "~/components/button";
+import { Layout } from "~/components/Layout";
+import { Button } from "~/components/Button";
 
 export default function Home() {
   return (

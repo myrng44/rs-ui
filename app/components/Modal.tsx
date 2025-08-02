@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
-import { Button } from "./button";
+import { Button } from "./Button";
 
 interface ModalProps {
   isOpen: boolean;
@@ -32,7 +32,7 @@ export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) 
           className="fixed inset-0 backdrop-blur-sm bg-black/10 transition-opacity"
           onClick={onClose}
         />
-        <div className="relative bg-surface rounded-lg shadow-xl w-full max-w-md transform transition-all">
+        <div className="relative bg-surface rounded-lg shadow-xl w-full max-w-lg transform transition-all">
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <button

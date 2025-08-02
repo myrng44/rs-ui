@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Layout } from "~/components/layout";
+import { Layout } from "~/components/Layout";
 import { dashboardApi } from "~/utils/api";
 
 interface DashboardSummary {

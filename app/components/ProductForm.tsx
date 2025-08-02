@@ -1,5 +1,5 @@
-import { Input } from "./input";
-import Dropdown from "~/components/dropdown";
+import { Input } from "./Input";
+import Dropdown from "~/components/Dropdown";
 
 interface ProductFormData {
   sku: string;
@@ -13,9 +13,10 @@ interface ProductFormData {
 interface ProductFormProps {
   formData: ProductFormData;
   onChange: (field: keyof ProductFormData, value: string) => void;
+  readonlyFields?: Array<keyof ProductFormData>;
 }
 
-export function ProductForm({ formData, onChange }: ProductFormProps) {
+export function ProductForm({ formData, onChange, readonlyFields = [] }: ProductFormProps) {
   const categoryOptions = [
     {value: "603630681414832128", label: "Trà"},
     {value: "002", label: "Rượu"},
@@ -32,6 +33,7 @@ export function ProductForm({ formData, onChange }: ProductFormProps) {
         value={formData.sku}
         onChange={(e) => onChange("sku", e.target.value)}
         placeholder="Nhập mã SKU"
+        readonly={readonlyFields.includes("sku")}
       />
       <Input
         label="Tên sản phẩm"
@@ -60,11 +62,13 @@ export function ProductForm({ formData, onChange }: ProductFormProps) {
                 value={formData.categoryId}
                 onChange={(e) => onChange("categoryId", e.target.value)}
                 options={categoryOptions}
+                readonly={readonlyFields.includes("categoryId")}
       />
       <Dropdown label={"Nhà phân phối"}
                 value={formData.supplierId}
                 onChange={(e) => onChange("supplierId", e.target.value)}
                 options={supplierOptions}
+                readonly={readonlyFields.includes("supplierId")}
       />
     </div>
   );

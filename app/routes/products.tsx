@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Layout } from "~/components/layout";
-import { Button } from "~/components/button";
-import Dropdown from "~/components/dropdown";
-import { Modal } from "~/components/modal";
-import { Pagination } from "~/components/pagination";
-import { ProductForm } from "~/components/productForm";
+import { Layout } from "~/components/Layout";
+import { Button } from "~/components/Button";
+import Dropdown from "~/components/Dropdown";
+import { Modal } from "~/components/Modal";
+import { Pagination } from "~/components/Pagination";
+import { ProductForm } from "~/components/ProductForm";
 import { productsApi } from "~/utils/api";
 
 interface Product {
@@ -310,7 +310,11 @@ export default function Products() {
             </>
           }
         >
-          <ProductForm formData={formData} onChange={handleFormChange} />
+          <ProductForm
+            formData={formData}
+            onChange={handleFormChange}
+            readonlyFields={["sku"]}
+          />
         </Modal>
       </div>
     </Layout>

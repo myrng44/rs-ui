@@ -1,4 +1,5 @@
-import { Button } from "./button";
+import { Button } from "./Button";
+import { useState } from "react";
 
 interface PaginationProps {
   currentPage: number;
@@ -19,6 +20,7 @@ export function Pagination({
                            }: PaginationProps) {
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+  const [inputPage, setInputPage] = useState(currentPage);
 
   const getVisiblePages = () => {
     const pages = [];
@@ -87,6 +89,30 @@ export function Pagination({
         >
           Sau
         </Button>
+
+        {/* Enter page number */}
+        <div className="flex items-center space-x-1 ml-2">
+          <input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={inputPage}
+            onChange={(e) => setInputPage(Number(e.target.value))}
+            className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (inputPage >= 1 && inputPage <= totalPages && inputPage !== currentPage) {
+                onPageChange(inputPage);
+              }
+            }}
+            disabled={loading || inputPage === currentPage}
+          >
+            Đi
+          </Button>
+        </div>
       </div>
     </div>
   );

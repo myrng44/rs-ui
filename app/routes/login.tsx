@@ -1,7 +1,7 @@
 import {type FormEvent, useState} from "react";
-import { Button } from "~/components/button";
-import { Input } from "~/components/input";
-import Dropdown from "~/components/dropdown";
+import { Button } from "~/components/Button";
+import { Input } from "~/components/Input";
+import Dropdown from "~/components/Dropdown";
 import { authApi } from "~/utils/api";
 
 export default function Login() {

@@ -11,6 +11,7 @@ interface DropdownProps {
   onChange: (e: ChangeEvent<HTMLSelectElement>) => void;
   options: DropdownOption[];
   required?: boolean;
+  readonly?: boolean;
 }
 
 export default function Dropdown({
@@ -19,6 +20,7 @@ export default function Dropdown({
   onChange,
   options,
   required = false,
+  readonly = false,
                                  }: DropdownProps) {
   return (
     <div>
@@ -27,9 +29,10 @@ export default function Dropdown({
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <select
-        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+        className={`w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${readonly ? 'bg-gray-100 text-gray-700 cursor-default' : ''}`}
         value={value}
         onChange={onChange}
+        disabled={readonly}
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>

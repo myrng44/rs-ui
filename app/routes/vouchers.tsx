@@ -1,11 +1,11 @@
-import { Layout } from "~/components/layout";
+import { Layout } from "~/components/Layout";
 import {useCallback, useEffect, useState} from "react";
 import {categoryApi, voucherApi} from "~/utils/api";
-import {Button} from "~/components/button";
-import {Pagination} from "~/components/pagination";
-import {Modal} from "~/components/modal";
-import {CategoryForm} from "~/components/categoryForm";
-import {VoucherForm} from "~/components/voucherForm";
+import {Button} from "~/components/Button";
+import {Pagination} from "~/components/Pagination";
+import {Modal} from "~/components/Modal";
+import {CategoryForm} from "~/components/CategoryForm";
+import {VoucherForm} from "~/components/VoucherForm";
 
 interface Voucher {
   id: string;

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Layout } from "~/components/layout";
-import { Button } from "~/components/button";
-import { Modal } from "~/components/modal";
-import { Pagination } from "~/components/pagination";
-import { OrderForm } from "~/components/orderForm";
+import { Layout } from "~/components/Layout";
+import { Button } from "~/components/Button";
+import { Modal } from "~/components/Modal";
+import { Pagination } from "~/components/Pagination";
+import { OrderForm } from "~/components/OrderForm";
+import { OrderDetailsModal } from "~/components/OrderDetailsModal";
 import { ordersApi } from "~/utils/api";
 
 interface Order {
@@ -26,7 +27,9 @@ export default function Orders() {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     customerId: "",
     storeId: "",
@@ -92,6 +95,11 @@ export default function Orders() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleViewDetails = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setIsDetailsModalOpen(true);
   };
 
   const handleEdit = (order: Order) => {
@@ -199,7 +207,14 @@ export default function Orders() {
               ) : (
                 orders.map((order) => (
                   <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="p-4 font-medium text-gray-900 text-sm">{order.id}</td>
+                    <td className="p-4 font-medium text-gray-900 text-sm">
+                      <button
+                        onClick={() => handleViewDetails(order.id)}
+                        className="text-primary hover:text-primary-dark hover:underline cursor-pointer"
+                      >
+                        {order.id}
+                      </button>
+                    </td>
                     <td className="p-4 text-gray-900">{order.customerId}</td>
                     <td className="p-4 text-gray-900">{order.storeId}</td>
                     <td className="p-4 text-gray-600">{order.voucherId || "Không có"}</td>
@@ -299,6 +314,16 @@ export default function Orders() {
         >
           <OrderForm formData={formData} onChange={handleFormChange} />
         </Modal>
+
+        {/* Order Details Modal */}
+        <OrderDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => {
+            setIsDetailsModalOpen(false);
+            setSelectedOrderId(null);
+          }}
+          orderId={selectedOrderId}
+        />
       </div>
     </Layout>
   );

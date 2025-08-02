@@ -381,6 +381,18 @@ export const ordersApi = {
 
     return apiCall<number>(endpoint);
   },
+
+  getOrderDetails: async (orderId: string) => {
+    return apiCall<Array<{
+      id: string;
+      orderId: string;
+      productId: number;
+      productName: string;
+      quantity: number;
+      unitPrice: number;
+      totalPrice: number;
+    }>>(`/secured/rest/v1/orders/details/summary/${orderId}`);
+  },
 };
 
 //dashboard API

@@ -1,4 +1,4 @@
-import { Input } from "./input";
+import { Input } from "./Input";
 import CustomDateTimePicker from "~/components/DateTimePicker";
 
 interface VoucherFormData {

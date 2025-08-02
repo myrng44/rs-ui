@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import type { LinksFunction } from "react-router";
 import "./app.css";
 import { AuthProvider } from "./contexts/authContext";
-import ProtectedRoute from "./components/protectedRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router";
 
 export const links: LinksFunction = () => [
