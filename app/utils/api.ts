@@ -450,6 +450,22 @@ export const ordersApi = {
 		>(`/secured/rest/v1/orders/details/summary/${orderId}`);
 	},
 
+  createOrderDetail: async (orderDetail: {
+    orderId: string;
+    productId: string;
+    quantity: number;
+  }) => {
+    return apiCall<{
+      id: string;
+      orderId: string;
+      productId: number;
+      quantity: number;
+    }>('/secured/rest/v1/orders/details', {
+      method: 'POST',
+      body: JSON.stringify(orderDetail),
+    });
+  },
+
   search: async (query: string, limit: number = 10) => {
     const searchParams = new URLSearchParams();
     searchParams.append("query", query);

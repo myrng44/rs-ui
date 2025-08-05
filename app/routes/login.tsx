@@ -3,6 +3,7 @@ import { Button } from '~/components/Button';
 import { Input } from '~/components/Input';
 import Dropdown from '~/components/Dropdown';
 import { authApi } from '~/utils/api';
+import {Toast} from "~/components/Toast";
 
 export default function Login() {
 	const [formData, setFormData] = useState({
@@ -23,17 +24,25 @@ export default function Login() {
 	];
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
 	const handleLogin = async (e: FormEvent) => {
 		e.preventDefault();
 		setIsLoading(true);
 		setError('');
+    setToastMessage('');
+    setShowToast(false);
 
 		try {
 			const data = await authApi.login(formData);
 			localStorage.setItem('accessToken', data.accessToken);
 			localStorage.setItem('refreshToken', data.refreshToken);
-			window.location.href = '/';
+      setToastMessage("Đăng nhập thành công!");
+      setShowToast(true);
+			setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
 		} catch (err: any) {
 			if (err.status === 401) {
 				setError('Tên đăng nhập hoặc mật khẩu không đúng');
@@ -107,6 +116,14 @@ export default function Login() {
 						</div>
 					</div>
 				</form>
+        {showToast && (
+          <Toast
+            message={toastMessage}
+            type="success"
+            duration={2000}
+            onClose={() => setShowToast(false)}
+          />
+        )}
 			</div>
 		</div>
 	);

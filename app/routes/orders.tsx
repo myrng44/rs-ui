@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '~/components/Layout';
 import { Button } from '~/components/Button';
 import { Modal } from '~/components/Modal';
+import { DataTable } from '~/components/DataTable';
+import { OrderFormWithProducts, type OrderProduct } from '~/components/OrderFormWithProducts';
 import { Pagination } from '~/components/Pagination';
-import { OrderForm } from '~/components/OrderForm';
 import { OrderDetailsModal } from '~/components/OrderDetailsModal';
 import { ordersApi } from '~/utils/api';
 
@@ -37,7 +38,8 @@ export default function Orders() {
 		note: '',
 		paymentId: '',
 	});
-	const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderProducts, setOrderProducts] = useState<OrderProduct[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 	useEffect(() => {
 		loadOrders();
@@ -84,12 +86,53 @@ export default function Orders() {
 
 	const handleAdd = async () => {
 		try {
-			setIsSubmitting(true);
-			setError('');
-			await ordersApi.create(formData);
-			setIsAddModalOpen(false);
-			resetForm();
-			loadOrders(currentPage);
+      setIsSubmitting(true);
+      setError('');
+
+      /**
+       * validate
+       */
+      if (!formData.customerId || !formData.storeId || !formData.paymentId) {
+        setError('Vui lòng điền đầy đủ thông tin bắt buộc');
+        return;
+      }
+
+      if (orderProducts.length === 0) {
+        setError('Vui lòng thêm ít nhất một sản phẩm');
+        return;
+      }
+
+      /**
+       * Validate cac rang buoc cua product
+       */
+      for (const product of orderProducts) {
+        if (!product.productId || product.quantity < 1) {
+          setError('Vui lòng chọn sản phẩm và nhập số lượng hợp lệ');
+          return;
+        }
+      }
+
+      /**
+       * Create order fist (can orderId de tao cac orderDetails)
+       */
+      const createdOrder = await ordersApi.create(formData);
+
+      /**
+       * After have orderId, Create orderDetails with this orderId
+       */
+      const orderDetailPromises = orderProducts.map(product =>
+        ordersApi.createOrderDetail({
+          orderId: createdOrder.id,
+          productId: product.productId,
+          quantity: product.quantity,
+        })
+      );
+
+      await Promise.all(orderDetailPromises);
+
+      setIsAddModalOpen(false);
+      resetForm();
+      loadOrders(currentPage);
 		} catch (err: any) {
 			setError('Không thể thêm đơn hàng');
 			console.error('Error adding order:', err);
@@ -103,16 +146,31 @@ export default function Orders() {
 		setIsDetailsModalOpen(true);
 	};
 
-	const handleEdit = (order: Order) => {
-		setEditingOrder(order);
-		setFormData({
-			customerId: order.customerId.toString(),
-			storeId: order.storeId.toString(),
-			voucherId: order.voucherId?.toString() || '',
-			note: order.note,
-			paymentId: order.paymentId.toString(),
-		});
-		setIsEditModalOpen(true);
+  const handleEdit = async (order: Order) => {
+    try {
+      setEditingOrder(order);
+      setFormData({
+        customerId: order.customerId.toString(),
+        storeId: order.storeId.toString(),
+        voucherId: order.voucherId?.toString() || '',
+        note: order.note,
+        paymentId: order.paymentId.toString(),
+      });
+
+      const orderDetails = await ordersApi.getOrderDetails(order.id);
+      const products: OrderProduct[] = orderDetails.map((detail, index) => ({
+        id: `${detail.id}_${index}`,
+        productId: detail.productId.toString(),
+        productName: detail.productName,
+        quantity: detail.quantity,
+      }));
+      setOrderProducts(products);
+
+      setIsEditModalOpen(true);
+    } catch (err) {
+      console.error('Error loading order details:', err);
+      setError('Không thể tải chi tiết đơn hàng');
+    }
 	};
 
 	const handleUpdate = async () => {
@@ -121,8 +179,33 @@ export default function Orders() {
 		try {
 			setIsSubmitting(true);
 			setError('');
+
+      //validate form data
+      if (!formData.customerId || !formData.storeId || !formData.paymentId) {
+        setError('Vui lòng điền đầy đủ thông tin bắt buộc');
+        return;
+      }
+
+      if (orderProducts.length === 0) {
+        setError('Vui lòng thêm ít nhất một sản phẩm');
+        return;
+      }
+
+      //validate products
+      for (const product of orderProducts) {
+        if (!product.productId || product.quantity < 1) {
+          setError('Vui lòng chọn sản phẩm và nhập số lượng hợp lệ');
+          return;
+        }
+      }
+
+      //update order first
 			await ordersApi.update(editingOrder.id, formData);
-			setIsEditModalOpen(false);
+
+      //!note:not updating order details in edit mode
+      console.warn('Order details update not implemented in edit mode');
+
+      setIsEditModalOpen(false);
 			setEditingOrder(null);
 			resetForm();
 			loadOrders(currentPage);
@@ -167,84 +250,79 @@ export default function Orders() {
 						<p className='text-gray-600'>Theo dõi và xử lý đơn hàng</p>
 					</div>
 					<Button onClick={() => setIsAddModalOpen(true)} disabled={loading}>
-						Thêm đơn hàng
+						Tạo mới đơn hàng
 					</Button>
 				</div>
 
 				{error && <div className='bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg'>{error}</div>}
 
-				<div className='bg-surface rounded-lg shadow-md border border-gray-200'>
-					<div className='overflow-x-auto'>
-						<table className='w-full'>
-							<thead>
-								<tr className='border-b border-gray-200'>
-									<th className='text-left p-4 font-semibold text-gray-900'>ID</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Mã Khách hàng</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Cửa hàng</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Voucher</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Ghi chú</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Tổng tiền</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Thao tác</th>
-								</tr>
-							</thead>
-							<tbody>
-								{loading ? (
-									<tr>
-										<td colSpan={7} className='text-center p-8'>
-											<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto'></div>
-											<p className='mt-2 text-gray-600'>Đang tải...</p>
-										</td>
-									</tr>
-								) : orders.length === 0 ? (
-									<tr>
-										<td colSpan={7} className='text-center p-8 text-gray-600'>
-											Chưa có đơn hàng nào
-										</td>
-									</tr>
-								) : (
-									orders.map((order) => (
-										<tr key={order.id} className='border-b border-gray-100 hover:bg-gray-50'>
-											<td className='p-4 font-medium text-gray-900 text-sm'>
-												<button
-													onClick={() => handleViewDetails(order.id)}
-													className='text-primary hover:text-primary-dark hover:underline cursor-pointer'
-												>
-													{order.id}
-												</button>
-											</td>
-											<td className='p-4 text-gray-900'>{order.customerId}</td>
-											<td className='p-4 text-gray-900'>{order.storeId}</td>
-											<td className='p-4 text-gray-600'>{order.voucherId || 'Không có'}</td>
-											<td className='p-4 text-gray-600 max-w-xs truncate'>{order.note}</td>
-											<td className='p-4 text-gray-900 font-medium'>{formatPrice(order.finalPrice)}</td>
-											<td className='p-4'>
-												<div className='flex space-x-2'>
-													<Button size='sm' variant='outline' onClick={() => handleEdit(order)}>
-														Sửa
-													</Button>
-													<Button size='sm' variant='danger' onClick={() => handleDelete(order.id)}>
-														Xóa
-													</Button>
-												</div>
-											</td>
-										</tr>
-									))
-								)}
-							</tbody>
-						</table>
-					</div>
+        <DataTable
+          data={orders}
+          columns={[
+            {
+              key: 'id',
+              label: 'ID',
+              render: (value, order) => (
+                <button
+                  onClick={() => handleViewDetails(order.id)}
+                  className='text-primary hover:text-primary-dark hover:underline cursor-pointer font-medium text-sm'
+                >
+                  {value}
+                </button>
+              ),
+            },
+            {
+              key: 'customerId',
+              label: 'Mã Khách hàng',
+              render: (value) => <span className='text-gray-900'>{value}</span>,
+            },
+            {
+              key: 'storeId',
+              label: 'Cửa hàng',
+              render: (value) => <span className='text-gray-900'>{value}</span>,
+            },
+            {
+              key: 'voucherId',
+              label: 'Voucher',
+              render: (value) => <span className='text-gray-600'>{value || 'Không có'}</span>,
+            },
+            {
+              key: 'note',
+              label: 'Ghi chú',
+              render: (value) => <span className='text-gray-600 max-w-xs truncate block'>{value}</span>,
+            },
+            {
+              key: 'finalPrice',
+              label: 'Tổng tiền',
+              render: (value) => <span className='text-gray-900 font-medium'>{formatPrice(value)}</span>,
+            },
+          ]}
+          actions={[
+            {
+              label: 'Sửa',
+              variant: 'outline',
+              onClick: handleEdit,
+            },
+            {
+              label: 'Xóa',
+              variant: 'danger',
+              onClick: (order) => handleDelete(order.id),
+            },
+          ]}
+          loading={loading}
+          emptyMessage='Chưa có đơn hàng nào'
+        />
 
-					{!loading && orders.length > 0 && (
-						<Pagination
-							currentPage={currentPage}
-							totalPages={Math.ceil(totalElements / itemsPerPage)}
-							totalItems={totalElements}
-							itemsPerPage={itemsPerPage}
-							onPageChange={handlePageChange}
-							loading={loading}
-						/>
-					)}
-				</div>
+        {!loading && orders.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(totalElements / itemsPerPage)}
+            totalItems={totalElements}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            loading={loading}
+          />
+        )}
 
 				{/* Add Modal */}
 				<Modal
@@ -271,7 +349,12 @@ export default function Orders() {
 						</>
 					}
 				>
-					<OrderForm formData={formData} onChange={handleFormChange} />
+          <OrderFormWithProducts
+            formData={formData}
+            products={orderProducts}
+            onChange={handleFormChange}
+            onProductsChange={setOrderProducts}
+          />
 				</Modal>
 
 				{/* Edit Modal */}
@@ -301,7 +384,14 @@ export default function Orders() {
 						</>
 					}
 				>
-					<OrderForm formData={formData} onChange={handleFormChange} />
+          <OrderFormWithProducts
+            formData={formData}
+            products={orderProducts}
+            onChange={handleFormChange}
+            onProductsChange={setOrderProducts}
+            readonlyField={['customerId', 'storeId', 'note', 'paymentId', 'voucherId']}
+          />
+
 				</Modal>
 
 				{/* Order Details Modal */}

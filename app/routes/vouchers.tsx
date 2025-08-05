@@ -166,7 +166,7 @@ export default function Vouchers() {
 						<p className='text-gray-600'>Thêm, sửa, xóa và quản lý mã giảm giá</p>
 					</div>
 					<Button onClick={() => setIsAddModalOpen(true)} disabled={loading}>
-						Thêm mã giảm giá mới
+						Tạo mới mã giảm giá
 					</Button>
 				</div>
 
@@ -181,7 +181,7 @@ export default function Vouchers() {
 									<th className='text-left p-4 font-semibold text-gray-900'>Mô tả</th>
 									<th className='text-left p-4 font-semibold text-gray-900'>Giảm theo %</th>
 									<th className='text-left p-4 font-semibold text-gray-900'>Giảm theo giá trị</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Ngayf bắt đầu</th>
+									<th className='text-left p-4 font-semibold text-gray-900'>Ngày bắt đầu</th>
 									<th className='text-left p-4 font-semibold text-gray-900'>Ngày hết hạn</th>
 									<th className='text-left p-4 font-semibold text-gray-900'>Thao tác</th>
 								</tr>
@@ -197,7 +197,7 @@ export default function Vouchers() {
 								) : vouchers.length === 0 ? (
 									<tr>
 										<td colSpan={5} className='text-center p-8 text-gray-600'>
-											Chưa có sản phẩm nào
+											Chưa có mã giảm giá nào
 										</td>
 									</tr>
 								) : (

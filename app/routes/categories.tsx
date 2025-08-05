@@ -5,6 +5,7 @@ import { Button } from '~/components/Button';
 import { Pagination } from '~/components/Pagination';
 import { Modal } from '~/components/Modal';
 import { CategoryForm } from '~/components/CategoryForm';
+import { DataTable } from '~/components/DataTable';
 import { AutocompleteSearchBar, type SearchField, type SearchResult } from "~/components/AutoCompleteSearchBar";
 
 interface Category {
@@ -168,63 +169,46 @@ export default function Categories() {
           placeholder="Tìm kiếm danh mục..."
         />
 
-				<div className='bg-surface rounded-lg shadow-md border border-gray-200'>
-					<div className='overflow-x-auto'>
-						<table className='w-full'>
-							<thead>
-								<tr className='border-b border-gray-200'>
-									<th className='text-left p-4 font-semibold text-gray-900'>Tên danh mục</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Mô tả</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Thao tác</th>
-								</tr>
-							</thead>
-							<tbody>
-								{loading ? (
-									<tr>
-										<td colSpan={5} className='text-center p-8'>
-											<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto'></div>
-											<p className='mt-2 text-gray-600'>Đang tải...</p>
-										</td>
-									</tr>
-								) : categories.length === 0 ? (
-									<tr>
-										<td colSpan={5} className='text-center p-8 text-gray-600'>
-											Chưa có sản phẩm nào
-										</td>
-									</tr>
-								) : (
-									categories.map((category) => (
-										<tr key={category.id} className='border-b border-gray-100 hover:bg-gray-50'>
-											<td className='p-4 text-gray-900'>{category.name}</td>
-											<td className='p-4 text-gray-600'>{category.description}</td>
-											<td className='p-4'>
-												<div className='flex space-x-2'>
-													<Button size='sm' variant='outline' onClick={() => handleEdit(category)}>
-														Sửa
-													</Button>
-													<Button size='sm' variant='danger' onClick={() => handleDelete(category.id)}>
-														Xóa
-													</Button>
-												</div>
-											</td>
-										</tr>
-									))
-								)}
-							</tbody>
-						</table>
-					</div>
+        <DataTable
+          data={categories}
+          columns={[
+            {
+              key: 'name',
+              label: 'Tên danh mục',
+              render: (value) => <span className='text-gray-900'>{value}</span>,
+            },
+            {
+              key: 'description',
+              label: 'Mô tả',
+              render: (value) => <span className='text-gray-600'>{value}</span>,
+            },
+          ]}
+          actions={[
+            {
+              label: 'Sửa',
+              variant: 'outline',
+              onClick: handleEdit,
+            },
+            {
+              label: 'Xóa',
+              variant: 'danger',
+              onClick: (category) => handleDelete(category.id),
+            },
+          ]}
+          loading={loading}
+          emptyMessage='Chưa có danh mục nào'
+        />
 
-					{!loading && categories.length > 0 && (
-						<Pagination
-							currentPage={currentPage}
-							totalPages={Math.ceil(totalElements / itemsPerPage)}
-							totalItems={totalElements}
-							itemsPerPage={itemsPerPage}
-							onPageChange={handlePageChange}
-							loading={loading}
-						/>
-					)}
-				</div>
+        {!loading && categories.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(totalElements / itemsPerPage)}
+            totalItems={totalElements}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            loading={loading}
+          />
+        )}
 
 				{/* Add Modal */}
 				<Modal

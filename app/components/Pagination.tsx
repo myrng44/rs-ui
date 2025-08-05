@@ -49,7 +49,7 @@ export function Pagination({
 	if (totalPages <= 1) return null;
 
 	return (
-		<div className='flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200'>
+		<div className='flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 rounded-md'>
 			<div className='flex items-center text-sm text-gray-700'>
 				<span>
 					Hiển thị <span className='font-medium'>{startItem}</span> đến <span className='font-medium'>{endItem}</span>{' '}

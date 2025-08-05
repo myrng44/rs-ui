@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '~/components/Layout';
 import { Button } from '~/components/Button';
 import { Modal } from '~/components/Modal';
+import { DataTable } from '~/components/DataTable';
 import { Pagination } from '~/components/Pagination';
 import { ProductForm } from '~/components/ProductForm';
 import { productsApi } from '~/utils/api';
 import { AutocompleteSearchBar, type SearchField, type SearchResult } from "~/components/AutoCompleteSearchBar";
+import {Toast} from "~/components/Toast";
 
 
 interface Product {
@@ -38,6 +40,9 @@ export default function Products() {
 		supplierId: '',
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'info' | 'success' | 'error' | 'warning'>('info');
 
   const productSearchFields: SearchField[] = [
     { value: "sku", label: "Mã SKU", type: "text", operator: "~" },
@@ -100,6 +105,9 @@ export default function Products() {
 			setIsSubmitting(true);
 			setError('');
 			await productsApi.create(formData);
+      setToastMessage('Thêm sản phẩm thành công!');
+      setToastType('success');
+      setShowToast(true);
 			setIsAddModalOpen(false);
 			resetForm();
 			//reload current page -> show the new product
@@ -107,6 +115,9 @@ export default function Products() {
 		} catch (err: any) {
 			setError('Không thể thêm sản phẩm');
 			console.error('Error adding product:', err);
+      setToastMessage('Lỗi khi thêm sản phẩm!');
+      setToastType('error');
+      setShowToast(true);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -138,10 +149,13 @@ export default function Products() {
 				categoryId: formData.categoryId,
 				supplierId: formData.supplierId,
 			});
-			setIsEditModalOpen(false);
+      setToastMessage('Cập nhật sản phẩm thành công!');
+      setToastType('success');
+      setShowToast(true);
+      setIsEditModalOpen(false);
 			setEditingProduct(null);
 			resetForm();
-			// Reload current page to show updated product
+			//reload current page to show updated product
 			await loadProducts(currentPage);
 		} catch (err: any) {
 			setError('Không thể cập nhật sản phẩm');
@@ -156,7 +170,10 @@ export default function Products() {
 			try {
 				setError('');
 				await productsApi.delete(id);
-				// Check if current page becomes empty after deletion
+        setToastMessage('Xóa sản phẩm thành công!');
+        setToastType('success');
+        setShowToast(true);
+        //check if current page becomes empty after deletion
 				const newTotal = totalElements - 1;
 				const maxPage = Math.ceil(newTotal / itemsPerPage);
 				const targetPage = currentPage > maxPage ? Math.max(1, maxPage) : currentPage;
@@ -185,7 +202,7 @@ export default function Products() {
 						<p className='text-gray-600'>Thêm, sửa, xóa và quản lý sản phẩm</p>
 					</div>
 					<Button onClick={() => setIsAddModalOpen(true)} disabled={loading}>
-						Thêm sản phẩm
+						Thêm mới sản phẩm
 					</Button>
 				</div>
 
@@ -196,68 +213,57 @@ export default function Products() {
           onSearch={handleAutocompleteSearch}
           placeholder="Tìm kiếm sản phẩm..."
         />
-        
-				<div className='bg-surface rounded-lg shadow-md border border-gray-200'>
-					<div className='overflow-x-auto'>
-						<table className='w-full'>
-							<thead>
-								<tr className='border-b border-gray-200'>
-									<th className='text-left p-4 font-semibold text-gray-900'>Mã SKU</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Tên sản phẩm</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Mô tả</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Giá bán</th>
-									<th className='text-left p-4 font-semibold text-gray-900'>Thao tác</th>
-								</tr>
-							</thead>
-							<tbody>
-								{loading ? (
-									<tr>
-										<td colSpan={5} className='text-center p-8'>
-											<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto'></div>
-											<p className='mt-2 text-gray-600'>Đang tải...</p>
-										</td>
-									</tr>
-								) : products.length === 0 ? (
-									<tr>
-										<td colSpan={5} className='text-center p-8 text-gray-600'>
-											Chưa có sản phẩm nào
-										</td>
-									</tr>
-								) : (
-									products.map((product) => (
-										<tr key={product.id} className='border-b border-gray-100 hover:bg-gray-50'>
-											<td className='p-4 font-medium text-gray-900'>{product.sku}</td>
-											<td className='p-4 text-gray-900'>{product.name}</td>
-											<td className='p-4 text-gray-600'>{product.description}</td>
-											<td className='p-4 text-gray-900'>{formatPrice(product.unitPrice)}</td>
-											<td className='p-4'>
-												<div className='flex space-x-2'>
-													<Button size='sm' variant='outline' onClick={() => handleEdit(product)}>
-														Sửa
-													</Button>
-													<Button size='sm' variant='danger' onClick={() => handleDelete(product.id)}>
-														Xóa
-													</Button>
-												</div>
-											</td>
-										</tr>
-									))
-								)}
-							</tbody>
-						</table>
-					</div>
 
-					{!loading && products.length > 0 && (
-						<Pagination
-							currentPage={currentPage}
-							totalPages={Math.ceil(totalElements / itemsPerPage)}
-							totalItems={totalElements}
-							itemsPerPage={itemsPerPage}
-							onPageChange={handlePageChange}
-							loading={loading}
-						/>
-					)}
-				</div>
+        <DataTable
+          data={products}
+          columns={[
+            {
+              key: 'sku',
+              label: 'Mã SKU',
+              render: (value) => <span className='font-medium text-gray-900'>{value}</span>,
+            },
+            {
+              key: 'name',
+              label: 'Tên sản phẩm',
+              render: (value) => <span className='text-gray-900'>{value}</span>,
+            },
+            {
+              key: 'description',
+              label: 'Mô tả',
+              render: (value) => <span className='text-gray-600'>{value}</span>,
+            },
+            {
+              key: 'unitPrice',
+              label: 'Giá bán',
+              render: (value) => <span className='text-gray-900'>{formatPrice(value)}</span>,
+            },
+          ]}
+          actions={[
+            {
+              label: 'Sửa',
+              variant: 'outline',
+              onClick: handleEdit,
+            },
+            {
+              label: 'Xóa',
+              variant: 'danger',
+              onClick: (product) => handleDelete(product.id),
+            },
+          ]}
+          loading={loading}
+          emptyMessage='Chưa có sản phẩm nào'
+        />
+
+        {!loading && products.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(totalElements / itemsPerPage)}
+            totalItems={totalElements}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            loading={loading}
+          />
+        )}
 
 				{/* Add Modal */}
 				<Modal
@@ -317,6 +323,15 @@ export default function Products() {
 					<ProductForm formData={formData} onChange={handleFormChange} readonlyFields={['sku']} />
 				</Modal>
 			</div>
-		</Layout>
+      {showToast && (
+        <Toast className={'mt-6'}
+          message={toastMessage}
+          type={toastType}
+          duration={3000}
+          onClose={() => setShowToast(false)}
+        />
+      )}
+
+    </Layout>
 	);
 }
