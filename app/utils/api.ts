@@ -32,17 +32,31 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   return response.json();
 }
 
-// ========== AUTH API ==========
 export const authApi = {
-  // Đăng nhập, nhận token
+  // Updated login to match backend response structure
   login: async (credentials: { userName: string; passWord: string }) => {
-    return apiCall<{ token: string }>("/api/auth/login", {
+    return apiCall<{
+      code: number;
+      message: string;
+      data: {
+        id: number;
+        userName: string;
+        fullName: string;
+        email: string;
+        phone: string;
+        storeId: number;
+        lastLogin?: string;
+        token: string;
+        roles: string[];
+        permissions: string[];
+      };
+    }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(credentials),
     });
   },
 
-  // Lấy thông tin user hiện tại từ token
+  // If you have getCurrentUser endpoint, it should also match backend
   getCurrentUser: async () => {
     const res = await apiCall<{
       code: number;
@@ -65,8 +79,17 @@ export const authApi = {
     }>("/api/auth/me");
     return res.data;
   },
-};
 
+  logout: async () => {
+    return apiCall<{
+      code: number;
+      message: string;
+      data: string;
+    }>("/api/auth/logout", {
+      method: "POST",
+    });
+  },
+};
 // ========== PRODUCTS API ==========
 export const productsApi = {
   getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
@@ -435,17 +458,32 @@ export const dashboardApi = {
     const res = await apiCall<{
       code: number;
       message: string;
+      data: Array<[number, string, number]>;
+    }>(endpoint);
+    return res.data.map(([id, name, unitPrice]) => ({
+      id: String(id),
+      name,
+      unitPrice,
+    }));
+  },
+
+  getRecentOrders: async (limit: number = 4) => {
+    const res = await apiCall<{
+      code: number;
+      message: string;
       data: Array<{
         id: string;
-        sku: string;
-        name: string;
-        description: string;
-        unitPrice: number;
-        categoryId: number;
-        supplierId: number;
+        customerName: string;
+        finalPrice: number;
+        status: string;
       }>;
-    }>(endpoint);
-    return res.data;
+    }>(`/api/orders/recent?limit=${limit}`);
+    return res.data.map((order) => ({
+      id: order.id,
+      customer: order.customerName,
+      total: order.finalPrice,
+      status: order.status,
+    }));
   },
 };
 

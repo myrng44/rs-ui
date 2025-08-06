@@ -2,73 +2,84 @@ import { Link } from "react-router";
 import { Button } from "~/components/Button";
 import { Layout } from "~/components/Layout";
 
+const features = [
+  {
+    icon: "📊",
+    title: "Dashboard",
+    desc: "Xem tổng quan và thống kê",
+    link: "/dashboard",
+    btn: "Xem Dashboard",
+  },
+  {
+    icon: "📦",
+    title: "Quản lý Sản phẩm",
+    desc: "Thêm, sửa, xóa và quản lý sản phẩm",
+    link: "/products",
+    btn: "Quản lý Sản phẩm",
+  },
+  {
+    icon: "🛒",
+    title: "Đơn hàng",
+    desc: "Theo dõi và xử lý đơn hàng",
+    link: "/orders",
+    btn: "Xem Đơn hàng",
+  },
+  {
+    icon: "📂",
+    title: "Danh mục",
+    desc: "Quản lý danh mục sản phẩm",
+    link: "/categories",
+    btn: "Quản lý Danh mục",
+  },
+  {
+    icon: "🏭",
+    title: "Nhà cung cấp",
+    desc: "Quản lý thông tin nhà cung cấp",
+    link: "/suppliers",
+    btn: "Quản lý Nhà cung cấp",
+  },
+  {
+    icon: "📋",
+    title: "Kho",
+    desc: "Quản lý tồn kho và nhập xuất",
+    link: "/stock",
+    btn: "Quản lý Kho",
+  },
+];
+
 export default function Home() {
   return (
     <Layout>
-      <div className="space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Chào mừng đến với Store maN
+      <div className="max-w-6xl mx-auto px-4 py-10 space-y-12">
+        {/* Tiêu đề */}
+        <div className="text-center space-y-4">
+          <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
+            Vanh Store
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Hệ thống quản lý cửa hàng toàn diện
+          <p className="text-lg text-gray-600 max-w-xl mx-auto">
+            Hệ thống quản lý cửa hàng toàn diện, dễ sử dụng và hiện đại
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="text-3xl mb-4">📊</div>
-            <h3 className="text-lg font-semibold mb-2">Dashboard</h3>
-            <p className="text-gray-600 mb-4">Xem tổng quan và thống kê</p>
-            <Link to="/dashboard">
-              <Button size="sm">Xem Dashboard</Button>
-            </Link>
-          </div>
-
-          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="text-3xl mb-4">📦</div>
-            <h3 className="text-lg font-semibold mb-2">Quản lý Sản phẩm</h3>
-            <p className="text-gray-600 mb-4">Thêm, sửa, xóa và quản lý sản phẩm</p>
-            <Link to="/products">
-              <Button size="sm">Quản lý Sản phẩm</Button>
-            </Link>
-          </div>
-
-          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="text-3xl mb-4">🛒</div>
-            <h3 className="text-lg font-semibold mb-2">Đơn hàng</h3>
-            <p className="text-gray-600 mb-4">Theo dõi và xử lý đơn hàng</p>
-            <Link to="/orders">
-              <Button size="sm">Xem Đơn hàng</Button>
-            </Link>
-          </div>
-
-          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="text-3xl mb-4">📂</div>
-            <h3 className="text-lg font-semibold mb-2">Danh mục</h3>
-            <p className="text-gray-600 mb-4">Quản lý danh mục sản phẩm</p>
-            <Link to="/categories">
-              <Button size="sm">Quản lý Danh mục</Button>
-            </Link>
-          </div>
-
-          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="text-3xl mb-4">🏭</div>
-            <h3 className="text-lg font-semibold mb-2">Nhà cung cấp</h3>
-            <p className="text-gray-600 mb-4">Quản lý thông tin nhà cung cấp</p>
-            <Link to="/suppliers">
-              <Button size="sm">Quản lý Nhà cung cấp</Button>
-            </Link>
-          </div>
-
-          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="text-3xl mb-4">📋</div>
-            <h3 className="text-lg font-semibold mb-2">Kho</h3>
-            <p className="text-gray-600 mb-4">Quản lý tồn kho và nhập xuất</p>
-            <Link to="/stock">
-              <Button size="sm">Quản lý Kho</Button>
-            </Link>
-          </div>
+        {/* Grid các tính năng */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((f, i) => (
+            <div
+              key={i}
+              className="group bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 p-6 flex flex-col items-center text-center"
+            >
+              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                {f.icon}
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {f.title}
+              </h3>
+              <p className="text-gray-600 mb-6 text-sm">{f.desc}</p>
+              <Link to={f.link} className="mt-auto">
+                <Button size="sm">{f.btn}</Button>
+              </Link>
+            </div>
+          ))}
         </div>
       </div>
     </Layout>

@@ -24,7 +24,7 @@ export function Navbar() {
     <nav className="h-16 bg-surface border-b border-gray-200 px-6 flex items-center justify-between shadow-sm fixed top-0 left-0 right-0 z-50">
       <div className="flex items-center space-x-8">
         <Link to="/" className="text-xl font-bold text-primary">
-          Store maN
+          Store
         </Link>
         <div className="flex items-center space-x-6">
           <Link

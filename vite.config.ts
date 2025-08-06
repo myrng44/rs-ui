@@ -6,4 +6,12 @@ import devtoolsJson from 'vite-plugin-devtools-json';
 
 export default defineConfig({
 	plugins: [tailwindcss(), reactRouter(), tsconfigPaths(), devtoolsJson()],
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080", // URL backend Spring Boot
+        changeOrigin: true,
+      },
+    },
+  },
 });
