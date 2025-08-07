@@ -779,7 +779,7 @@ export const voucherApi = {
 			discountValue: number;
 			startTime: any;
 			expirationTime: any;
-		}>(`secured/rest/v1/vouchers`, {
+		}>(`/secured/rest/v1/vouchers`, {
 			method: 'POST',
 			body: JSON.stringify({
 				...voucher,
