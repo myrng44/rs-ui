@@ -6,8 +6,8 @@ interface VoucherFormData {
 	description: string;
 	discountPercent: number;
 	discountValue: number;
-	startTime: any;
-	expirationTime: any;
+	startTime: string;
+	expirationTime: string;
 }
 
 interface VoucherFormProps {
@@ -46,8 +46,16 @@ export function VoucherForm({ formData, onChange }: VoucherFormProps) {
 				onChange={(e) => onChange('discountValue', e.target.value)}
 				placeholder='Nhập giá trị của mã giảm giá (tùy chọn)'
 			/>
-			<CustomDateTimePicker label={'Thời gian bắt đầu hiệu lực'} />
-			<CustomDateTimePicker label={'Thời gian kết thúc'} />
+      <CustomDateTimePicker
+        label={'Thời gian bắt đầu hiệu lực'}
+        value={formData.startTime}
+        onChange={(value) => onChange('startTime', value)}
+      />
+      <CustomDateTimePicker
+        label={'Thời gian kết thúc'}
+        value={formData.expirationTime}
+        onChange={(value) => onChange('expirationTime', value)}
+      />
 		</div>
 	);
 }

@@ -1,18 +1,47 @@
-import React, { useState, useMemo } from 'react';
+import React, {useState, useMemo, useEffect} from 'react';
 
 interface CustomDateTimePickerProps {
 	label?: string;
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
-export default function CustomDateTimePicker({ label = 'Chọn ngày giờ:' }: CustomDateTimePickerProps) {
+export default function CustomDateTimePicker({ label = 'Chọn ngày giờ:',
+                                             value = '',
+                                             onChange }: CustomDateTimePickerProps) {
 	const [date, setDate] = useState('');
 	const [hour, setHour] = useState('00');
 	const [minute, setMinute] = useState('00');
 	const [second, setSecond] = useState('00');
 
+  useEffect(() => {
+    if (value) {
+      //parse format
+      const [datePart, timePart] = value.split('T');
+      if (datePart) setDate(datePart);
+      if (timePart) {
+        const [h, m, s] = timePart.split(':');
+        setHour(h || '00');
+        setMinute(m || '00');
+        setSecond(s || '00');
+      }
+    } else {
+      setDate('');
+      setHour('00');
+      setMinute('00');
+      setSecond('00');
+    }
+  }, [value]);
+
 	const combined = useMemo(() => {
 		return date ? `${date}T${hour}:${minute}:${second}` : '';
 	}, [date, hour, minute, second]);
+
+  useEffect(() => {
+    if (onChange && combined !== value) {
+      onChange(combined);
+    }
+  }, [combined, onChange, value]);
 
 	const generateOptions = (max: number) =>
 		Array.from({ length: max }, (_, i) => String(i).padStart(2, '0')).map((val) => (

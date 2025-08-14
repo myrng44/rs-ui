@@ -744,8 +744,8 @@ export const voucherApi = {
 				description: string;
 				discountPercent: number;
 				discountValue: number;
-				startTime: any;
-				expirationTime: any;
+				startTime: string;
+				expirationTime: string;
 			}>;
 			totalElements: number;
 		}>(endpoint);
@@ -758,8 +758,8 @@ export const voucherApi = {
 			description: string;
 			discountPercent: number;
 			discountValue: number;
-			startTime: any;
-			expirationTime: any;
+			startTime: string;
+			expirationTime: string;
 		}>(`/secured/rest/v1/vouchers/${id}`);
 	},
 
@@ -768,8 +768,8 @@ export const voucherApi = {
 		description: string;
 		discountPercent: number;
 		discountValue: number;
-		startTime: any;
-		expirationTime: any;
+		startTime: string;
+		expirationTime: string;
 	}) => {
 		return apiCall<{
 			id: string;
@@ -777,8 +777,8 @@ export const voucherApi = {
 			description: string;
 			discountPercent: number;
 			discountValue: number;
-			startTime: any;
-			expirationTime: any;
+			startTime: string;
+			expirationTime: string;
 		}>(`/secured/rest/v1/vouchers`, {
 			method: 'POST',
 			body: JSON.stringify({
@@ -794,8 +794,8 @@ export const voucherApi = {
 			description: string;
 			discountPercent: number;
 			discountValue: number;
-			startTime: any;
-			expirationTime: any;
+			startTime: string;
+			expirationTime: string;
 		},
 	) => {
 		return apiCall<{
@@ -804,8 +804,8 @@ export const voucherApi = {
 			description: string;
 			discountPercent: number;
 			discountValue: number;
-			startTime: any;
-			expirationTime: any;
+			startTime: string;
+			expirationTime: string;
 		}>(`/secured/rest/v1/vouchers/${id}`, {
 			method: 'PUT',
 			body: JSON.stringify({

@@ -1,87 +1,211 @@
-# Welcome to React Router!
+# 🚀 StoremaN Frontend Application
 
-A modern, production-ready template for building full-stack React applications using React Router.
+A modern, production-ready React application built with React Router v7 and Vite, featuring TypeScript, server-side rendering, and seamless API integration.
+
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)
+![React Router](https://img.shields.io/badge/React_Router-CA4245?style=for-the-badge&logo=react-router&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
 
-## Features
+## ✨ Features
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+- 🏎️ **React Router v7** - Latest routing capabilities with improved performance
+- ⚡️ **Vite** - Lightning fast build tool with HMR
+- 🔷 **TypeScript** - Full type safety and developer experience
+- 🎨 **TailwindCSS** - Utility-first CSS framework for rapid UI development
+- 🚀 **Server-side Rendering (SSR)** - Better SEO and initial load performance
+- 🔄 **Hot Module Replacement** - Instant updates during development
+- 📦 **Asset Optimization** - Automatic bundling and optimization
+- 🔒 **Environment Configuration** - Secure API endpoint management
+- 🌐 **API Integration** - Built-in support for both public and secured endpoints
 
-## Getting Started
+## 📋 Prerequisites
 
-### Installation
+Before running this project, make sure you have:
 
-Install the dependencies:
+- **Node.js** (version 18.0 or higher)
+- **npm** or **yarn** or **pnpm**
+- Access to the backend API server
 
-```bash
-npm install
-```
+## 🛠️ Installation
 
-### Development
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/myrng44/rs-ui.git
+   cd rs-ui
+   ```
 
-Start the development server with HMR:
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   ```
+
+3. **Environment Setup**
+
+   Create a `.env` file in the root directory:
+   ```env
+   VITE_API_BASE_URL=http://localhost:8080
+   VITE_API_PUBLIC_URL=/public/rest/v1
+   VITE_API_SECURED_URL=/secured/rest/v1
+   ```
+
+   > 📝 **Note**: Update the `VITE_API_BASE_URL` to match your backend server URL
+
+## 🚀 Getting Started
+
+### Development Mode
+
+Start the development server with hot reload:
 
 ```bash
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+The application will be available at `http://localhost:5173`
 
-## Building for Production
+### Build for Production
 
-Create a production build:
+Create an optimized production build:
 
 ```bash
 npm run build
 ```
 
-## Deployment
+### Preview Production Build
 
-### Docker Deployment
-
-To build and run using Docker:
+Preview the production build locally:
 
 ```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
+npm run preview
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+## 🌍 Environment Variables
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_API_BASE_URL` | Backend server base URL | `http://localhost:8080` |
+| `VITE_API_PUBLIC_URL` | Public API endpoints path | `/public/rest/v1` |
+| `VITE_API_SECURED_URL` | Secured API endpoints path | `/secured/rest/v1` |
 
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
+## 📁 Project Structure
 
 ```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
+├── public/              # Static assets
+├── src/
+│   ├── components/      # Reusable UI components
+│   ├── pages/          # Page components
+│   ├── hooks/          # Custom React hooks
+│   ├── utils/          # Utility functions
+│   ├── types/          # TypeScript type definitions
+│   ├── services/       # API service functions
+│   └── styles/         # Global styles and Tailwind config
 ├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
+│   ├── client/         # Static assets (after build)
+│   └── server/         # Server-side code (after build)
+├── .env                # Environment variables
+├── package.json
+├── tailwind.config.js
+├── vite.config.ts
+└── tsconfig.json
 ```
 
-## Styling
+## 🎨 Styling
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+This project uses [**TailwindCSS**](https://tailwindcss.com/) for styling:
+
+- ✅ Pre-configured and ready to use
+- ✅ Custom design system setup
+- ✅ Responsive design utilities
+
+You can customize the Tailwind configuration in `tailwind.config.js`.
+
+## 🐳 Docker Deployment
+
+### Build Docker Image
+
+```bash
+docker build -t frontend-app .
+```
+
+### Run Container
+
+```bash
+docker run -p 3000:3000 --env-file .env frontend-app
+```
+
+### Deployment Platforms
+
+This containerized application can be deployed to:
+
+- 🌩️ **AWS ECS/Fargate**
+- 🔵 **Google Cloud Run**
+- 🟦 **Azure Container Apps**
+- 🌊 **Digital Ocean App Platform**
+- 🪰 **Fly.io**
+- 🚂 **Railway**
+- 🔺 **Vercel** (with Docker support)
+- 📦 **Heroku Container Registry**
+
+## 🔧 API Integration
+
+The application is configured to work with REST APIs through two main endpoints:
+
+### Public Endpoints
+```typescript
+// Example: Fetch public data
+const response = await fetch(`${VITE_API_BASE_URL}${VITE_API_PUBLIC_URL}/data`);
+```
+
+### Secured Endpoints
+```typescript
+// Example: Fetch secured data (requires authentication)
+const response = await fetch(`${VITE_API_BASE_URL}${VITE_API_SECURED_URL}/user/profile`, {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+```
+
+## 🧪 Development Tips
+
+- **Type Safety**: Leverage TypeScript for better development experience
+- **Hot Reload**: Changes are instantly reflected during development
+- **DevTools**: React Developer Tools and browser DevTools work seamlessly
+- **Performance**: Use React.memo, useMemo, and useCallback for optimization
+- **Code Splitting**: Implement lazy loading for better performance
+
+## 📖 Documentation
+
+- [React Router v7 Documentation](https://reactrouter.com/)
+- [Vite Documentation](https://vitejs.dev/)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+- [TailwindCSS Documentation](https://tailwindcss.com/docs)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-Built with ❤️ using React Router.
+<div align="center">
+
+**Built using React Router v7 & Vite**
+
+[⭐ Star this repo](https://github.com/your-repo) • [🐛 Report Bug](https://github.com/your-repo/issues) • [💡 Request Feature](https://github.com/your-repo/issues)
+
+</div>

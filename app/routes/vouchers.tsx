@@ -13,8 +13,8 @@ interface Voucher {
 	description: string;
 	discountPercent: number;
 	discountValue: number;
-	startTime: any;
-	expirationTime: any;
+	startTime: string;
+	expirationTime: string;
 }
 
 export default function Vouchers() {
@@ -33,8 +33,8 @@ export default function Vouchers() {
 		description: '',
 		discountPercent: 0,
 		discountValue: 0,
-		startTime: null,
-		expirationTime: null,
+		startTime: '',
+		expirationTime: '',
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,8 +78,8 @@ export default function Vouchers() {
 			description: '',
 			discountPercent: 0,
 			discountValue: 0,
-			startTime: null,
-			expirationTime: null,
+			startTime: '',
+			expirationTime: '',
 		});
 	};
 
