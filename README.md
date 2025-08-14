@@ -206,6 +206,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built using React Router v7 & Vite**
 
-[⭐ Star this repo](https://github.com/your-repo) • [🐛 Report Bug](https://github.com/your-repo/issues) • [💡 Request Feature](https://github.com/your-repo/issues)
+[⭐ Star this repo](https://github.com/myrng44/rs-ui) • [🐛 Report Bug](https://github.com/myrng44/rs-ui/issues) • [💡 Request Feature](https://github.com/myrng44/rs-ui/issues)
 
 </div>
