@@ -3,73 +3,74 @@ import { Layout } from '~/components/Layout';
 import {dashboardApi, ordersApi} from '~/utils/api';
 
 interface DashboardSummary {
-	totalProducts: number;
-	todayOrders: number;
-	monthlyRevenue: number;
-	totalCustomer: number;
+  totalProducts: number;
+  todayOrders: number;
+  monthlyRevenue: number;
+  totalCustomer: number;
 }
 
 interface TopProduct {
-	id: string;
-	name: string;
-	unitPrice: number;
+  id: string;
+  name: string;
+  unitPrice: number;
 }
 
 interface RecentOrder {
   id: string;
   customerId: string;
+  customerName: string;
   storeId: number;
-  voucherId: string | null;
+  voucherCode: string | null;
   finalPrice: number;
-  note: string;
-  paymentId: number;
+  note: string | null;
+  paymentMethodName: string;
 }
 
 
 export default function Dashboard() {
-	const [summary, setSummary] = useState<DashboardSummary | null>(null);
-	const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [recentOrder, setRecentOrder] = useState<RecentOrder[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedDays, setSelectedDays] = useState(7);
   const [loadingTopProducts, setLoadingTopProducts] = useState(false);
   const [topProductsError, setTopProductsError] = useState('');
 
-	useEffect(() => {
-		loadDashboardData();
-	}, []);
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
-	const loadDashboardData = async () => {
-		try {
-			setLoading(true);
-			const [summaryData, recentOrderData, productsData] = await Promise.all([
-				dashboardApi.getSummary(),
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [summaryData, recentOrderData, productsData] = await Promise.all([
+        dashboardApi.getSummary(),
         ordersApi.getAll({
           offset: 0,
           limit: 4,
           sort: '-createdTime',
         }),
-				dashboardApi.getTopProducts(7, 4),
-			]);
+        dashboardApi.getTopProducts(7, 4),
+      ]);
 
-			setSummary(summaryData);
+      setSummary(summaryData);
       setRecentOrder(recentOrderData.elements);
-			setTopProducts(
-				productsData.map((product) => ({
-					id: product.id,
-					name: product.name,
-					unitPrice: product.unitPrice,
-				})),
-			);
-			setError('');
-		} catch (err: any) {
-			setError('Không thể tải dữ liệu dashboard');
-			console.error('Error loading dashboard data:', err);
-		} finally {
-			setLoading(false);
-		}
-	};
+      setTopProducts(
+        productsData.map((product) => ({
+          id: product.id,
+          name: product.name,
+          unitPrice: product.unitPrice,
+        })),
+      );
+      setError('');
+    } catch (err: any) {
+      setError('Không thể tải dữ liệu dashboard');
+      console.error('Error loading dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadTopProducts = async (days: number) => {
     try {
@@ -128,63 +129,63 @@ export default function Dashboard() {
     await loadTopProducts(days);
   };
 
-	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat('vi-VN', {
-			style: 'currency',
-			currency: 'VND',
-		}).format(price);
-	};
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(price);
+  };
 
-	const formatNumber = (num: number) => {
-		return new Intl.NumberFormat('vi-VN').format(num);
-	};
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('vi-VN').format(num);
+  };
 
-	const getStatsData = () => {
-		if (!summary) return [];
+  const getStatsData = () => {
+    if (!summary) return [];
 
-		return [
-			{ label: 'Tổng sản phẩm', value: formatNumber(summary.totalProducts), icon: '📦' },
-			{ label: 'Đơn hàng hôm nay', value: formatNumber(summary.todayOrders), icon: '🛒' },
-			{ label: 'Doanh thu tháng', value: formatPrice(summary.monthlyRevenue), icon: '💰' },
-			{ label: 'Tổng khách hàng', value: formatNumber(summary.totalCustomer), icon: '👥' },
-		];
-	};
+    return [
+      { label: 'Tổng sản phẩm', value: formatNumber(summary.totalProducts), icon: '📦' },
+      { label: 'Đơn hàng hôm nay', value: formatNumber(summary.todayOrders), icon: '🛒' },
+      { label: 'Doanh thu tháng', value: formatPrice(summary.monthlyRevenue), icon: '💰' },
+      { label: 'Tổng khách hàng', value: formatNumber(summary.totalCustomer), icon: '👥' },
+    ];
+  };
 
-	return (
-		<Layout>
-			<div className='space-y-6'>
-				<div>
-					<h1 className='text-2xl font-bold text-gray-900'>Dashboard</h1>
-					<p className='text-gray-600'>Tổng quan kinh doanh và thống kê</p>
-				</div>
+  return (
+    <Layout>
+      <div className='space-y-6'>
+        <div>
+          <h1 className='text-2xl font-bold text-gray-900'>Dashboard</h1>
+          <p className='text-gray-600'>Tổng quan kinh doanh và thống kê</p>
+        </div>
 
-				{error && <div className='bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg'>{error}</div>}
+        {error && <div className='bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg'>{error}</div>}
 
-				{/* Stats Cards */}
-				<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
-					{loading
-						? Array.from({ length: 4 }).map((_, index) => (
-								<div key={index} className='bg-surface p-6 rounded-lg shadow-md border border-gray-200'>
-									<div className='animate-pulse'>
-										<div className='h-4 bg-gray-200 rounded w-3/4 mb-2'></div>
-										<div className='h-8 bg-gray-200 rounded w-1/2 mb-1'></div>
-									</div>
-								</div>
-							))
-						: getStatsData().map((stat, index) => (
-								<div key={index} className='bg-surface p-6 rounded-lg shadow-md border border-gray-200'>
-									<div className='flex items-center justify-between'>
-										<div>
-											<p className='text-sm text-gray-600'>{stat.label}</p>
-											<p className='text-2xl font-bold text-gray-900'>{stat.value}</p>
-										</div>
-										<div className='text-3xl'>{stat.icon}</div>
-									</div>
-								</div>
-							))}
-				</div>
+        {/* Stats Cards */}
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
+          {loading
+            ? Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className='bg-surface p-6 rounded-lg shadow-md border border-gray-200'>
+                <div className='animate-pulse'>
+                  <div className='h-4 bg-gray-200 rounded w-3/4 mb-2'></div>
+                  <div className='h-8 bg-gray-200 rounded w-1/2 mb-1'></div>
+                </div>
+              </div>
+            ))
+            : getStatsData().map((stat, index) => (
+              <div key={index} className='bg-surface p-6 rounded-lg shadow-md border border-gray-200'>
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <p className='text-sm text-gray-600'>{stat.label}</p>
+                    <p className='text-2xl font-bold text-gray-900'>{stat.value}</p>
+                  </div>
+                  <div className='text-3xl'>{stat.icon}</div>
+                </div>
+              </div>
+            ))}
+        </div>
 
-				<div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
           {/* Recent Orders */}
           <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
             <h2 className="text-lg font-semibold mb-4">Đơn hàng gần đây</h2>
@@ -264,8 +265,8 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-				</div>
-			</div>
-		</Layout>
-	);
+        </div>
+      </div>
+    </Layout>
+  );
 }

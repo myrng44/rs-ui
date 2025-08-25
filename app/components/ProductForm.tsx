@@ -1,7 +1,7 @@
 import { Input } from './Input';
 import Dropdown from '~/components/Dropdown';
 import { useEffect, useState } from 'react';
-import { categoryApi, supplierApi } from '~/utils/api';
+import { categoryApi } from '~/utils/api';
 
 interface ProductFormData {
   sku: string;
@@ -9,7 +9,6 @@ interface ProductFormData {
   description: string;
   unitPrice: string;
   categoryId: string;
-  supplierId: string;
 }
 
 interface ProductFormProps {
@@ -24,11 +23,9 @@ export function ProductForm({
                               readonlyFields = [],
                             }: ProductFormProps) {
   const [availableCategories, setAvailableCategories] = useState<Array<{ value: string; label: string }>>([]);
-  const [availableSuppliers, setAvailableSuppliers] = useState<Array<{ value: string; label: string }>>([]);
 
   useEffect(() => {
     loadCategories();
-    loadSuppliers();
   }, []);
 
   const loadCategories = async () => {
@@ -43,21 +40,6 @@ export function ProductForm({
       ]);
     } catch (error) {
       console.error('Error loading categories', error);
-    }
-  };
-
-  const loadSuppliers = async () => {
-    try {
-      const response = await supplierApi.getAll();
-      setAvailableSuppliers([
-        { value: '', label: '-- Chọn nhà cung cấp --' },
-        ...response.elements.map((supplier: any) => ({
-          value: supplier.id,
-          label: supplier.name,
-        })),
-      ]);
-    } catch (error) {
-      console.error('Error loading suppliers', error);
     }
   };
 
@@ -101,15 +83,6 @@ export function ProductForm({
         options={availableCategories}
         required
         readonly={readonlyFields.includes('categoryId')}
-      />
-
-      <Dropdown
-        label='Nhà cung cấp'
-        value={formData.supplierId}
-        onChange={(e) => onChange('supplierId', e.target.value)}
-        options={availableSuppliers}
-        required
-        readonly={readonlyFields.includes('supplierId')}
       />
     </div>
   );
