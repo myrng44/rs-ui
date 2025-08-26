@@ -23,7 +23,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 					readOnly={readonly}
 					className={`
             w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm
-            focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+            transition-all duration-200
+            focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-md
+            hover:border-gray-400 hover:shadow-md
             disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
             ${readonly ? 'bg-gray-100 text-gray-700 cursor-default' : ''}
             ${error ? 'border-error focus:ring-error' : ''}

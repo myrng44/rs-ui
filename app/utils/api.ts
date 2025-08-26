@@ -5,7 +5,7 @@ interface ApiError extends Error {
 }
 
 interface ApiResponse<T> {
-  header: {
+  metadata: {
     timestamp: string;
     code: number;
     message: string;
@@ -96,7 +96,7 @@ export const productsApi = {
 
     return {
       elements: response.body,
-      totalElements: response.header.totalRecords || 0,
+      totalElements: response.metadata.totalRecords || 0,
     };
   },
 
@@ -239,7 +239,7 @@ export const categoryApi = {
 
     return {
       elements: response.body,
-      totalElements: response.header.totalRecords || 0,
+      totalElements: response.metadata.totalRecords || 0,
     };
   },
 
@@ -353,7 +353,7 @@ export const ordersApi = {
 
     return {
       elements: response.body,
-      totalElements: response.header.totalRecords || 0,
+      totalElements: response.metadata.totalRecords || 0,
     };
   },
 
@@ -557,7 +557,7 @@ export const storeStockApi = {
 
     return {
       elements: response.body,
-      totalElements: response.header.totalRecords || 0,
+      totalElements: response.metadata.totalRecords || 0,
     };
   },
 
@@ -676,7 +676,7 @@ export const supplierApi = {
 
     return {
       elements: response.body,
-      totalElements: response.header.totalRecords || 0,
+      totalElements: response.metadata.totalRecords || 0,
     };
   },
 
@@ -773,7 +773,7 @@ export const voucherApi = {
 
     return {
       elements: response.body,
-      totalElements: response.header.totalRecords || 0,
+      totalElements: response.metadata.totalRecords || 0,
     };
   },
 
@@ -879,14 +879,14 @@ export const customersApi = {
     const response = await apiCallWithResponse<Array<{
       id: string;
       name: string;
-      email: string;
       phone: string;
-      address: string;
+      gender: string;
+      point: number;
     }>>(endpoint);
 
     return {
       elements: response.body,
-      totalElements: response.header.totalRecords || 0,
+      totalElements: response.metadata.totalRecords || 0,
     };
   },
 
@@ -894,9 +894,9 @@ export const customersApi = {
     const response = await apiCallWithResponse<{
       id: string;
       name: string;
-      email: string;
       phone: string;
-      address: string;
+      gender: string;
+      point: number;
     }>(`/secured/rest/v1/customers/${id}`);
 
     return response.body;
@@ -904,16 +904,16 @@ export const customersApi = {
 
   create: async (customer: {
     name: string;
-    email: string;
     phone: string;
-    address: string;
+    gender: string;
+    point: number;
   }) => {
     const response = await apiCallWithResponse<{
       id: string;
       name: string;
-      email: string;
       phone: string;
-      address: string;
+      gender: string;
+      point: number;
     }>(`/secured/rest/v1/customers`, {
       method: 'POST',
       body: JSON.stringify(customer),
@@ -926,17 +926,17 @@ export const customersApi = {
     id: string,
     customer: {
       name: string;
-      email: string;
       phone: string;
-      address: string;
+      gender: string;
+      point: number;
     },
   ) => {
     const response = await apiCallWithResponse<{
       id: string;
       name: string;
-      email: string;
       phone: string;
-      address: string;
+      gender: string;
+      point: number;
     }>(`/secured/rest/v1/customers/${id}`, {
       method: 'PUT',
       body: JSON.stringify(customer),
@@ -978,14 +978,31 @@ export const customersApi = {
     const response = await apiCallWithResponse<Array<{
       id: string;
       name: string;
-      email: string;
       phone: string;
-      address: string;
+      gender: string;
+      point: number;
     }>>(endpoint);
 
     return response.body.map(customer => ({
       ...customer,
-      displayText: `${customer.name} (${customer.email})`,
+      displayText: `${customer.name} (${customer.phone})`,
     }));
   },
 };
+
+//payment method API
+export const paymentMethodApi = {
+  getAll: async () => {
+    const response = await apiCallWithResponse<Array<{
+      id: string;
+      code: string;
+      name: string;
+    }>>('/secured/rest/v1/payment-method');
+
+    return {
+      elements: response.body,
+      totalElements: response.body.length,
+    };
+  },
+};
+

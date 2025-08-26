@@ -13,26 +13,35 @@ interface ModalProps {
 export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) {
 	useEffect(() => {
 		if (isOpen) {
-			document.body.style.overflow = 'hidden';
-		} else {
-			document.body.style.overflow = 'unset';
-		}
+      // Calculate scrollbar width
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
-		return () => {
-			document.body.style.overflow = 'unset';
-		};
+      // Save original values
+      const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+
+      // Apply modal styles
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+
+      return () => {
+        // Restore original values
+        document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+      };
+    }
 	}, [isOpen]);
 
 	if (!isOpen) return null;
 
 	return (
-		<div className='fixed inset-0 z-50 overflow-y-auto'>
-			<div className='flex min-h-screen items-center justify-center p-4'>
-				<div className='fixed inset-0 backdrop-blur-sm bg-black/10 transition-opacity' onClick={onClose} />
-				<div className='relative bg-surface rounded-lg shadow-xl w-full max-w-lg transform transition-all'>
-					<div className='flex items-center justify-between p-6 border-b border-gray-200'>
-						<h3 className='text-lg font-semibold text-gray-900'>{title}</h3>
-						<button onClick={onClose} className='text-gray-400 hover:text-gray-600 transition-colors'>
+    <div className='fixed inset-0 z-50 overflow-y-auto animate-fade-in'>
+      <div className='flex min-h-screen items-center justify-center p-4'>
+        <div className='fixed inset-0 modal-backdrop transition-all duration-300' onClick={onClose} />
+        <div className='relative bg-surface rounded-lg shadow-xl w-full max-w-lg transform transition-all duration-300 animate-fade-in hover:shadow-2xl'>
+          <div className='flex items-center justify-between p-6 border-b border-gray-200'>
+            <h3 className='text-lg font-semibold text-gray-900'>{title}</h3>
+            <button onClick={onClose} className='text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1 transition-all duration-200'>
 							<span className='sr-only'>Đóng</span>
 							<svg className='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
 								<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />

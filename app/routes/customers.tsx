@@ -12,9 +12,9 @@ import { Toast } from '~/components/Toast';
 interface Customer {
   id: string;
   name: string;
-  email: string;
   phone: string;
-  address: string;
+  gender: string;
+  point: number;
 }
 
 export default function Customers() {
@@ -30,9 +30,9 @@ export default function Customers() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phone: '',
-    address: '',
+    gender: '',
+    point: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -41,8 +41,8 @@ export default function Customers() {
 
   const customerSearchFields: SearchField[] = [
     { value: 'name', label: 'Tên khách hàng', type: 'text', operator: '~' },
-    { value: 'email', label: 'Email', type: 'text', operator: '~' },
     { value: 'phone', label: 'Số điện thoại', type: 'text', operator: '~' },
+    { value: 'gender', label: 'Giới tính', type: 'text', operator: '=' },
   ];
 
   useEffect(() => {
@@ -86,9 +86,9 @@ export default function Customers() {
   const resetForm = () => {
     setFormData({
       name: '',
-      email: '',
       phone: '',
-      address: '',
+      gender: '',
+      point: '',
     });
   };
 
@@ -96,7 +96,12 @@ export default function Customers() {
     try {
       setIsSubmitting(true);
       setError('');
-      await customersApi.create(formData);
+      await customersApi.create({
+        name: formData.name,
+        phone: formData.phone,
+        gender: formData.gender,
+        point: parseInt(formData.point) || 0,
+      });
       setToastMessage('Thêm khách hàng thành công!');
       setToastType('success');
       setShowToast(true);
@@ -118,9 +123,9 @@ export default function Customers() {
     setEditingCustomer(customer);
     setFormData({
       name: customer.name,
-      email: customer.email,
       phone: customer.phone,
-      address: customer.address,
+      gender: customer.gender,
+      point: customer.point.toString(),
     });
     setIsEditModalOpen(true);
   };
@@ -131,7 +136,12 @@ export default function Customers() {
     try {
       setIsSubmitting(true);
       setError('');
-      await customersApi.update(editingCustomer.id, formData);
+      await customersApi.update(editingCustomer.id, {
+        name: formData.name,
+        phone: formData.phone,
+        gender: formData.gender,
+        point: parseInt(formData.point) || 0,
+      });
       setToastMessage('Cập nhật khách hàng thành công!');
       setToastType('success');
       setShowToast(true);
@@ -197,19 +207,19 @@ export default function Customers() {
               render: (value) => <span className='font-medium text-gray-900'>{value}</span>,
             },
             {
-              key: 'email',
-              label: 'Email',
+              key: 'phone',
+              label: 'Số điện thoại',
               render: (value) => <span className='text-gray-900'>{value}</span>,
             },
             {
-              key: 'phone',
-              label: 'Số điện thoại',
-              render: (value) => <span className='text-gray-600'>{value}</span>,
+              key: 'gender',
+              label: 'Giới tính',
+              render: (value) => <span className='text-gray-600'>{value === 'M' ? 'Nam' : value === 'F' ? 'Nữ' : 'Khác'}</span>,
             },
             {
-              key: 'address',
-              label: 'Địa chỉ',
-              render: (value) => <span className='text-gray-600'>{value}</span>,
+              key: 'point',
+              label: 'Điểm tích lũy',
+              render: (value) => <span className='font-medium text-green-600'>{new Intl.NumberFormat('vi-VN').format(value)}</span>,
             },
           ]}
           actions={[
@@ -273,25 +283,32 @@ export default function Customers() {
               required
             />
             <Input
-              label='Email'
-              type='email'
-              value={formData.email}
-              onChange={(e) => handleFormChange('email', e.target.value)}
-              required
-            />
-            <Input
               label='Số điện thoại'
               type='tel'
               value={formData.phone}
               onChange={(e) => handleFormChange('phone', e.target.value)}
               required
             />
+            <div className='space-y-2'>
+              <label className='block text-sm font-medium text-gray-700'>Giới tính</label>
+              <select
+                value={formData.gender}
+                onChange={(e) => handleFormChange('gender', e.target.value)}
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                required
+              >
+                <option value=''>Chọn giới tính</option>
+                <option value='M'>Nam</option>
+                <option value='F'>Nữ</option>
+                <option value='O'>Khác</option>
+              </select>
+            </div>
             <Input
-              label='Địa chỉ'
-              type='text'
-              value={formData.address}
-              onChange={(e) => handleFormChange('address', e.target.value)}
-              required
+              label='Điểm tích lũy'
+              type='number'
+              value={formData.point}
+              onChange={(e) => handleFormChange('point', e.target.value)}
+              min='0'
             />
           </div>
         </Modal>
@@ -332,25 +349,32 @@ export default function Customers() {
               required
             />
             <Input
-              label='Email'
-              type='email'
-              value={formData.email}
-              onChange={(e) => handleFormChange('email', e.target.value)}
-              required
-            />
-            <Input
               label='Số điện thoại'
               type='tel'
               value={formData.phone}
               onChange={(e) => handleFormChange('phone', e.target.value)}
               required
             />
+            <div className='space-y-2'>
+              <label className='block text-sm font-medium text-gray-700'>Giới tính</label>
+              <select
+                value={formData.gender}
+                onChange={(e) => handleFormChange('gender', e.target.value)}
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                required
+              >
+                <option value=''>Chọn giới tính</option>
+                <option value='M'>Nam</option>
+                <option value='F'>Nữ</option>
+                <option value='O'>Khác</option>
+              </select>
+            </div>
             <Input
-              label='Địa chỉ'
-              type='text'
-              value={formData.address}
-              onChange={(e) => handleFormChange('address', e.target.value)}
-              required
+              label='Điểm tích lũy'
+              type='number'
+              value={formData.point}
+              onChange={(e) => handleFormChange('point', e.target.value)}
+              min='0'
             />
           </div>
         </Modal>

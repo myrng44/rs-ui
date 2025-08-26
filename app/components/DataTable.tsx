@@ -75,7 +75,7 @@ export function DataTable<T extends Record<string, any>>({
             </tr>
           ) : (
             data.map((item) => (
-              <tr key={String(item[keyField])} className='border-b border-gray-100 hover:bg-gray-50'>
+              <tr key={String(item[keyField])} className='border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150'>
                 {columns.map((column) => {
                   const value = getNestedValue(item, column.key);
                   return (

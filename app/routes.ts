@@ -7,6 +7,7 @@ export default [
 	route('products', 'routes/products.tsx'),
 	route('categories', 'routes/categories.tsx'),
 	route('orders', 'routes/orders.tsx'),
+  route('customers', 'routes/customers.tsx'),
 	route('suppliers', 'routes/suppliers.tsx'),
 	route('stores', 'routes/stores.tsx'),
 	route('stock', 'routes/stock.tsx'),

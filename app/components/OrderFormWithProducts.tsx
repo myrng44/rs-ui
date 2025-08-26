@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Input } from './Input';
 import { Button } from './Button';
 import Dropdown from './Dropdown';
-import { productsApi } from '~/utils/api';
+import { productsApi, paymentMethodApi } from '~/utils/api';
 
 export interface OrderProduct {
   id: string;
@@ -36,9 +36,12 @@ export function OrderFormWithProducts({
                                       }: OrderFormWithProductsProps) {
   const [availableProducts, setAvailableProducts] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
 
   useEffect(() => {
     loadProducts();
+    loadPaymentMethods();
   }, []);
 
   const loadProducts = async () => {
@@ -55,6 +58,23 @@ export function OrderFormWithProducts({
       console.error('Error loading products:', error);
     } finally {
       setLoadingProducts(false);
+    }
+  };
+
+  const loadPaymentMethods = async () => {
+    try {
+      setLoadingPaymentMethods(true);
+      const response = await paymentMethodApi.getAll();
+      setPaymentMethods(
+        response.elements.map(method => ({
+          value: method.id,
+          label: method.name,
+        }))
+      );
+    } catch (error) {
+      console.error('Error loading payment methods:', error);
+    } finally {
+      setLoadingPaymentMethods(false);
     }
   };
 
@@ -99,37 +119,39 @@ export function OrderFormWithProducts({
         <h3 className='text-lg font-medium text-gray-900'>Thông tin đơn hàng</h3>
         <div className='grid grid-cols-2 gap-4'>
           <Input
-            label='ID Khách hàng'
+            label='Mã Khách hàng (tùy chọn)'
             value={formData.customerId}
             onChange={(e) => onChange('customerId', e.target.value)}
-            placeholder='Nhập ID khách hàng'
-            required
+            placeholder='Nhập mã khách hàng'
             readonly={readonlyField?.includes('customerId')}
           />
           <Input
-            label='ID Cửa hàng'
+            label='Mã Cửa hàng'
             value={formData.storeId}
             onChange={(e) => onChange('storeId', e.target.value)}
-            placeholder='Nhập ID cửa hàng'
+            placeholder='Nhập mã cửa hàng'
             required
             readonly={readonlyField?.includes('storeId')}
           />
         </div>
         <div className='grid grid-cols-2 gap-4'>
           <Input
-            label='ID Voucher (tùy chọn)'
+            label='Mã giảm giá (tùy chọn)'
             value={formData.voucherId}
             onChange={(e) => onChange('voucherId', e.target.value)}
-            placeholder='Nhập ID voucher'
+            placeholder='Nhập mã giảm giá'
             readonly={readonlyField?.includes('voucherId')}
           />
-          <Input
-            label='ID Thanh toán'
+          <Dropdown
+            label='Phương thức thanh toán'
             value={formData.paymentId}
             onChange={(e) => onChange('paymentId', e.target.value)}
-            placeholder='Nhập ID thanh toán'
+            options={[
+              { value: '', label: 'Chọn phương thức thanh toán' },
+              ...paymentMethods
+            ]}
             required
-            readonly={readonlyField?.includes('paymentId')}
+            readonly={readonlyField?.includes('paymentId') || loadingPaymentMethods}
           />
         </div>
         <div>
