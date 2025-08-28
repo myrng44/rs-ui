@@ -382,11 +382,11 @@ export const ordersApi = {
   },
 
   create: async (order: {
-    customerId: string;
-    storeId: string;
-    voucherId: string;
-    note: string;
+    customerId?: string;
+    note?: string;
+    voucherId?: string;
     paymentId: string;
+    lines: Array<{ productId: string; qtyOrdered: number }>;
   }) => {
     const response = await apiCallWithResponse<{
       id: string;
@@ -400,11 +400,16 @@ export const ordersApi = {
     }>('/secured/rest/v1/orders', {
       method: 'POST',
       body: JSON.stringify({
-        customerId: order.customerId,
-        storeId: parseInt(order.storeId),
-        voucherCode: order.voucherId || null,
-        note: order.note,
-        paymentMethodName: order.paymentId,
+        customerId: order.customerId ?? null,
+        note: order.note ?? null,
+        lines: order.lines.map(line => ({
+          productId: line.productId,
+          qtyOrdered: line.qtyOrdered,
+          qtyAllocated: line.qtyOrdered,
+          qtyPicked: line.qtyOrdered,
+        })),
+        voucherId: order.voucherId ?? null,
+        paymentId: order.paymentId,
       }),
     });
 
@@ -653,6 +658,21 @@ export const storeStockApi = {
       totalElements: response.body.length,
     };
   },
+  getProductBatches: async (productId: number | string) => {
+    const response = await apiCallWithResponse<Array<{
+      qtyReversed: number;
+      qtyTotal: number;
+      qtyAvailable: number;
+      manufactureDate: string;
+      batchCode: string;
+      importedPrice: number;
+      expiryDate: string;
+      productName: string;
+      supplierName: string;
+    }>>(`/secured/rest/v1/batch-stocks/products/${productId}`);
+
+    return response.body;
+  }
 };
 
 //supplier API

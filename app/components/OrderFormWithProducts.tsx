@@ -12,10 +12,10 @@ export interface OrderProduct {
 }
 
 interface OrderFormData {
-  customerId: string;
+  customerId?: string;
   storeId: string;
-  voucherId: string;
-  note: string;
+  voucherId?: string;
+  note?: string;
   paymentId: string;
 }
 
@@ -43,6 +43,22 @@ export function OrderFormWithProducts({
     loadProducts();
     loadPaymentMethods();
   }, []);
+
+  useEffect(() => {
+    const seen = new Set<string>();
+    let changed = false;
+    const normalized = products.map((p) => {
+      let pid = p.id || '';
+      if (!pid || seen.has(pid)) {
+        changed = true;
+        pid = `tmp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      }
+      seen.add(pid);
+      return { ...p, id: pid };
+    });
+    if (changed) onProductsChange(normalized);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products.length]);
 
   const loadProducts = async () => {
     try {
@@ -124,14 +140,6 @@ export function OrderFormWithProducts({
             onChange={(e) => onChange('customerId', e.target.value)}
             placeholder='Nhập mã khách hàng'
             readonly={readonlyField?.includes('customerId')}
-          />
-          <Input
-            label='Mã Cửa hàng'
-            value={formData.storeId}
-            onChange={(e) => onChange('storeId', e.target.value)}
-            placeholder='Nhập mã cửa hàng'
-            required
-            readonly={readonlyField?.includes('storeId')}
           />
         </div>
         <div className='grid grid-cols-2 gap-4'>
