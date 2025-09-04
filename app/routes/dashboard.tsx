@@ -13,6 +13,7 @@ interface TopProduct {
   id: string;
   name: string;
   unitPrice: number;
+  totalQuantitySold: number;
 }
 
 interface RecentOrder {
@@ -28,7 +29,7 @@ interface RecentOrder {
 
 
 export default function Dashboard() {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [recentOrder, setRecentOrder] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,23 +45,24 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [summaryData, recentOrderData, productsData] = await Promise.all([
-        dashboardApi.getSummary(),
+      const [totalProducts, recentOrderData, productsData] = await Promise.all([
+        dashboardApi.getTotalProducts(),
         ordersApi.getAll({
           offset: 0,
-          limit: 4,
+          limit: 5,
           sort: '-createdTime',
         }),
-        dashboardApi.getTopProducts(7, 4),
+        dashboardApi.getTopSoldProducts(7, 5),
       ]);
 
-      setSummary(summaryData);
+      setTotalProducts(totalProducts);
       setRecentOrder(recentOrderData.elements);
       setTopProducts(
         productsData.map((product) => ({
           id: product.id,
           name: product.name,
           unitPrice: product.unitPrice,
+          totalQuantitySold: product.totalQuantitySold,
         })),
       );
       setError('');
@@ -80,7 +82,7 @@ export default function Dashboard() {
 
       try {
         // Try to get top products from the specific endpoint
-        const productsData = await dashboardApi.getTopProducts(days, 4);
+        const productsData = await dashboardApi.getTopSoldProducts(days, 5);
         console.log('Top products response:', productsData);
 
         if (Array.isArray(productsData)) {
@@ -89,6 +91,7 @@ export default function Dashboard() {
               id: product.id,
               name: product.name,
               unitPrice: product.unitPrice,
+              totalQuantitySold: product.totalQuantitySold,
             })),
           );
         } else {
@@ -108,6 +111,7 @@ export default function Dashboard() {
               id: product.id,
               name: product.name,
               unitPrice: product.unitPrice,
+              totalQuantitySold: -1
             })),
           );
           setTopProductsError('API sản phẩm bán chạy không khả dụng, hiển thị sản phẩm mới nhất');
@@ -141,10 +145,10 @@ export default function Dashboard() {
   };
 
   const getStatsData = () => {
-    if (!summary) return [];
+    if (!totalProducts) return -1;
 
     return [
-      { label: 'Tổng sản phẩm', value: formatNumber(summary.totalProducts), icon: '📦' },
+      { label: 'Tổng sản phẩm', value: formatNumber(totalProducts), icon: '📦' },
       { label: 'Đơn hàng hôm nay', value: formatNumber(summary.todayOrders), icon: '🛒' },
       { label: 'Doanh thu tháng', value: formatPrice(summary.monthlyRevenue), icon: '💰' },
       { label: 'Tổng khách hàng', value: formatNumber(summary.totalCustomer), icon: '👥' },
@@ -252,6 +256,7 @@ export default function Dashboard() {
                     <div>
                       <p className='font-medium text-gray-900'>{product.name}</p>
                       <p className='text-sm text-gray-600'>Top #{index + 1}</p>
+                      <p className='text-sm text-gray-600'>{product.totalQuantitySold} đã bán</p>
                     </div>
                     <div className='text-right'>
                       <p className='font-medium text-gray-900'>{formatPrice(product.unitPrice)}</p>

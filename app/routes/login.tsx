@@ -90,7 +90,7 @@ export default function Login() {
 							<a href={'https://forms.office.com/r/DkAixzbSjg'}>Gửi yêu cầu hỗ trợ?</a>
 						</button>
 						<div className='bg-emerald-100 rounded-lg w-xs justify-center items-center mx-auto p-2'>
-							<p>(TEST)account: user6</p>
+							<p>(TEST)account: admin</p>
 							<p>(TEST)password: admin1234</p>
 						</div>
 					</div>

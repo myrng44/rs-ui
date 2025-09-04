@@ -509,35 +509,57 @@ export const ordersApi = {
 };
 
 //dashboard API
-export const dashboardApi = {
-  getSummary: async () => {
-    return apiCall<{
-      totalProducts: number;
-      todayOrders: number;
-      monthlyRevenue: number;
-      totalCustomer: number;
-    }>('/secured/rest/v1/summary');
-  },
-
-  getTopProducts: async (days: number = 30, noProducts: number = 4) => {
+export const statsApi = {
+  getTopSoldProducts: async (days: number = 30, noProducts: number = 5) => {
     const searchParams = new URLSearchParams();
     searchParams.append('days', days.toString());
     searchParams.append('noProducts', noProducts.toString());
 
     const queryString = searchParams.toString();
-    const endpoint = `/secured/rest/v1/orders/most?${queryString}`;
+    const endpoint = `/secured/rest/v1/orders/most-products?${searchParams.toString()}`;
 
-    return apiCall<
-      Array<{
-        id: string;
-        sku: string;
-        name: string;
-        description: string;
-        unitPrice: number;
-        categoryId: number;
-        supplierId: number;
-      }>
-    >(endpoint);
+    return apiCall<Array<{
+      id: string;
+      sku: string;
+      name: string;
+      desc: string;
+      unitPrice: number;
+      categoryId: string;
+      totalQuantitySold: number;
+    }>>(endpoint);
+  },
+
+  getTotalProducts: async () => {
+    const response = await apiCallWithResponse<{}>('secured/rest/v1/products/count');
+    return {
+      totalProducts: response.body
+    };
+  },
+
+  getMonthlyRevenues: async (days: number = 30) => {
+    const response = await apiCallWithResponse<{}>('secured/rest/v1/orders/revenue');
+    return {
+      revenues: response.body
+    };
+  },
+
+  getTotalCustomers: async () => {
+    const response = await apiCallWithResponse<{}>('secured/rest/v1/customers/count-new');
+    return {
+      totalCustomers: response.body
+    };
+  },
+
+  paymentMethodsUsage: async () => {
+    const response = await apiCallWithResponse<Array<{
+      name: string;
+      usage: number;
+    }>>('secured/rest/v1/orders/payment-method/usage?days=30');
+
+    return {
+      elements: response.body,
+      totalRecords: response.metadata.totalRecords || -1,
+    }
   },
 };
 
@@ -784,16 +806,30 @@ export const voucherApi = {
     const response = await apiCallWithResponse<Array<{
       id: string;
       code: string;
-      description: string;
-      discountPercent: number;
-      discountValue: number;
-      startTime: string;
-      expirationTime: string;
+      desc: string | null;
+      discountPer: number | null;
+      discountVal: number | null;
+      validFrom: string;
+      validTo: string;
+      qtyTotal?: number;
+      qtyRedeemed?: number;
+      perCustomerLimit?: number;
+      audienceType?: string;
     }>>(endpoint);
 
+    const elements = response.body.map(v => ({
+      id: v.id,
+      code: v.code,
+      description: v.desc ?? '',
+      discountPercent: v.discountPer ?? 0,
+      discountValue: v.discountVal ?? 0,
+      startTime: v.validFrom,
+      expirationTime: v.validTo,
+    }));
+
     return {
-      elements: response.body,
-      totalElements: response.metadata.totalRecords || 0,
+      elements,
+      totalElements: response.metadata.totalRecords || response.body.length,
     };
   },
 
@@ -801,14 +837,28 @@ export const voucherApi = {
     const response = await apiCallWithResponse<{
       id: string;
       code: string;
-      description: string;
-      discountPercent: number;
-      discountValue: number;
-      startTime: string;
-      expirationTime: string;
+      desc: string | null;
+      discountPer: number | null;
+      discountVal: number | null;
+      validFrom: string;
+      validTo: string;
+      qtyTotal?: number;
+      qtyRedeemed?: number;
+      perCustomerLimit?: number;
+      audienceType?: string;
     }>(`/secured/rest/v1/vouchers/${id}`);
 
-    return response.body;
+    const v = response.body;
+
+    return {
+      id: v.id,
+      code: v.code,
+      description: v.desc ?? '',
+      discountPercent: v.discountPer ?? 0,
+      discountValue: v.discountVal ?? 0,
+      startTime: v.validFrom,
+      expirationTime: v.validTo,
+    };
   },
 
   create: async (voucher: {

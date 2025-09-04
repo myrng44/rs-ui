@@ -34,7 +34,7 @@ export default function Orders() {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
-  const [itemsPerPage] = useState(20);
+  const [itemsPerPage] = useState(10);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
