@@ -1,16 +1,33 @@
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = 'http://localhost:8080';
 
 interface ApiError extends Error {
   status?: number;
 }
 
-// Hàm gọi API với xử lý token, lỗi, empty response cho DELETE/204
+// Updated interfaces to match backend response structure
+interface ApiResponse<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+
+interface PageResponse<T> {
+  content: T[];
+  totalPages: number;
+  totalElements: number;
+  currentPage: number;
+  pageSize: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+}
+
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem('accessToken');
 
   const config: RequestInit = {
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
@@ -25,115 +42,92 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw error;
   }
 
-  const contentType = response.headers.get("content-type");
-  if (response.status === 204 || !contentType || !contentType.includes("application/json")) {
-    return null as unknown as T;
-  }
   return response.json();
 }
 
+async function apiCallWithResponse<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  return apiCall<ApiResponse<T>>(endpoint, options);
+}
+
+async function apiCallWithPageResponse<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<PageResponse<T>>> {
+  return apiCall<ApiResponse<PageResponse<T>>>(endpoint, options);
+}
+
+//auth API
 export const authApi = {
-  // Updated login to match backend response structure
-  login: async (credentials: { userName: string; passWord: string }) => {
-    return apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: number;
-        userName: string;
-        fullName: string;
-        email: string;
-        phone: string;
-        storeId: number;
-        lastLogin?: string;
-        token: string;
-        roles: string[];
-        permissions: string[];
-      };
-    }>("/api/auth/login", {
-      method: "POST",
+  login: async (credentials: { userName: string; passWord: string;}) => {
+    const response = await apiCallWithResponse<{
+      id: number;
+      userName: string;
+      fullName: string;
+      email: string;
+      phone: string;
+      storeId: number;
+      lastLogin: string;
+      token: string;
+      roles: string[];
+      permissions: string[];
+    }>('/public/rest/v1/auth/login', {
+      method: 'POST',
       body: JSON.stringify(credentials),
     });
+    return response.data;
   },
 
-  // If you have getCurrentUser endpoint, it should also match backend
   getCurrentUser: async () => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: number;
-        userName: string;
-        fullName: string;
-        email: string;
-        phone: string;
-        storeId: number;
-        lastLogin?: string;
-        roles: string[];
-        permissions: string[];
-        createAt?: string;
-        createBy?: number;
-        updateAt?: string;
-        updateBy?: number;
-      };
-    }>("/api/auth/me");
-    return res.data;
-  },
-
-  logout: async () => {
-    return apiCall<{
-      code: number;
-      message: string;
-      data: string;
-    }>("/api/auth/logout", {
-      method: "POST",
-    });
+    const response = await apiCallWithResponse<{
+      id: number;
+      userName: string;
+      fullName: string;
+      email: string;
+      phone: string;
+      storeId: number;
+      lastLogin: string;
+      roles: string[];
+      permissions: string[];
+    }>('/public/rest/v1/auth/me');
+    return response.data;
   },
 };
-// ========== PRODUCTS API ==========
+
+//products API
 export const productsApi = {
   getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
-    if (params?.query) searchParams.append("query", params.query);
-    if (params?.sort) searchParams.append("sort", params.sort);
-    if (params?.offset) searchParams.append("offset", params.offset.toString());
-    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.sort) searchParams.append('sort', params.sort);
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
     const queryString = searchParams.toString();
-    const endpoint = `/api/products${queryString ? `?${queryString}` : ""}`;
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        elements: Array<{
-          id: string;
-          sku: string;
-          name: string;
-          description: string;
-          unitPrice: number;
-          categoryId: number;
-          supplierId: number;
-        }>;
-        totalElements: number;
-      };
+    const endpoint = `/secured/rest/v1/products${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: number;
+      categoryId: string;
     }>(endpoint);
-    return res.data;
+
+    return {
+      elements: response.data.content,
+      totalElements: response.data.totalElements,
+    };
   },
 
   getById: async (id: string) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        sku: string;
-        name: string;
-        description: string;
-        unitPrice: number;
-        categoryId: number;
-        supplierId: number;
-      };
-    }>(`/api/products/${id}`);
-    return res.data;
+    const response = await apiCallWithResponse<{
+      id: string;
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: number;
+      categoryId: string;
+    }>(`/secured/rest/v1/products/${id}`);
+
+    return response.data;
   },
 
   create: async (product: {
@@ -142,601 +136,674 @@ export const productsApi = {
     description: string;
     unitPrice: string;
     categoryId: string;
-    supplierId: string;
+    supplierId: string; 
   }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        sku: string;
-        name: string;
-        description: string;
-        unitPrice: number;
-        categoryId: number;
-        supplierId: number;
-      };
-    }>("/api/products", {
-      method: "POST",
+    const response = await apiCallWithResponse<{
+      id: string;
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: number;
+      categoryId: string;
+    }>('/secured/rest/v1/products', {
+      method: 'POST',
       body: JSON.stringify({
-        ...product,
-        unitPrice: parseFloat(product.unitPrice),
-        categoryId: parseInt(product.categoryId),
-        supplierId: parseInt(product.supplierId),
+        sku: product.sku,
+        name: product.name,
+        description: product.description,
+        unitPrice: product.unitPrice,
+        categoryId: product.categoryId,
+        supplierId: product.supplierId,
       }),
     });
-    return res.data;
+
+    return response.data;
   },
 
-  update: async (id: string, product: {
-    sku: string;
-    name: string;
-    description: string;
-    unitPrice: string;
-    categoryId: string;
-    supplierId: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        sku: string;
-        name: string;
-        description: string;
-        unitPrice: number;
-        categoryId: number;
-        supplierId: number;
-      };
-    }>(`/api/products/${id}`, {
-      method: "PUT",
+  update: async (
+    id: string,
+    product: {
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: string;
+      categoryId: string;
+      supplierId: string; 
+
+    },
+  ) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: number;
+      categoryId: string;
+    }>(`/secured/rest/v1/products/${id}`, {
+      method: 'PUT',
       body: JSON.stringify({
-        ...product,
-        unitPrice: parseFloat(product.unitPrice),
-        categoryId: parseInt(product.categoryId),
-        supplierId: parseInt(product.supplierId),
+        sku: product.sku,
+        name: product.name,
+        description: product.description,
+        unitPrice: product.unitPrice,
+        categoryId: product.categoryId,
+        supplierId: product.supplierId,
       }),
     });
-    return res.data;
+
+    return response.data;
   },
 
   delete: async (id: string) => {
-    await apiCall<null>(`/api/products/${id}`, {
-      method: "DELETE",
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
     });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const apiResponse = await response.json() as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
+  },
+
+  search: async (query: string, limit: number = 10) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('query', query);
+    searchParams.append('limit', limit.toString());
+    searchParams.append('offset', '0');
+
+    const endpoint = `/secured/rest/v1/products?${searchParams.toString()}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: number;
+      categoryId: string;
+    }>(endpoint);
+
+    return response.data.content.map(product => ({
+      ...product,
+      description: product.description,
+      displayText: `${product.name} (${product.sku})`,
+    }));
   },
 };
 
-// ========== CATEGORY API ==========
+//category API
 export const categoryApi = {
-  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?:number }) => {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
-    if (params?.query) searchParams.append("query", params.query);
-    if (params?.offset) searchParams.append("offset", params.offset.toString());
-    if (params?.limit) searchParams.append("limit", params.limit.toString());
-    if (params?.sort) searchParams.append("sort", params.sort);
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.sort) searchParams.append('sort', params.sort);
+
     const queryString = searchParams.toString();
-    const endpoint = `/api/categories${queryString ? `?${queryString}` : ""}`;
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        elements: Array<{
-          id: string;
-          name: string;
-          description: string;
-        }>;
-        totalElements: number;
-      };
+    const endpoint = `/secured/rest/v1/categories${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      name: string;
+      description: string;
     }>(endpoint);
-    return res.data;
+
+    return {
+      elements: response.data.content,
+      totalElements: response.data.totalElements,
+    };
   },
 
   getById: async (id: string) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        name: string;
-        description: string;
-      };
-    }>(`/api/categories/${id}`);
-    return res.data;
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      description: string;
+    }>(`/secured/rest/v1/categories/${id}`);
+
+    return response.data;
   },
 
-  create: async (category: {
-    name: string;
-    description: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        name: string;
-        description: string;
-      };
-    }>("/api/categories", {
-      method: "POST",
+  create: async (category: { name: string; description: string }) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      description: string;
+    }>(`/secured/rest/v1/categories`, {
+      method: 'POST',
       body: JSON.stringify(category),
     });
-    return res.data;
+
+    return response.data;
   },
 
-  update: async (id: string, category: {
-    name: string;
-    description: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        name: string;
-        description: string;
-      };
-    }>(`/api/categories/${id}`, {
-      method: "PUT",
+  update: async (
+    id: string,
+    category: {
+      name: string;
+      description: string;
+    },
+  ) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      description: string;
+    }>(`/secured/rest/v1/categories/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(category),
     });
-    return res.data;
+
+    return response.data;
   },
 
   delete: async (id: string) => {
-    await apiCall<null>(`/api/categories/${id}`, {
-      method: "DELETE",
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/categories/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
     });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const apiResponse = await response.json() as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
+  },
+
+  search: async (query: string, limit: number = 10) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('query', query);
+    searchParams.append('limit', limit.toString());
+    searchParams.append('offset', '0');
+
+    const endpoint = `/secured/rest/v1/categories?${searchParams.toString()}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      name: string;
+      description: string;
+    }>(endpoint);
+
+    return response.data.content.map(category => ({
+      ...category,
+      displayText: category.name,
+    }));
   },
 };
 
-// ========== ORDERS API ==========
+//orders API
 export const ordersApi = {
   getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
-    if (params?.query) searchParams.append("query", params.query);
-    if (params?.sort) searchParams.append("sort", params.sort);
-    if (params?.offset) searchParams.append("offset", params.offset.toString());
-    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.sort) searchParams.append('sort', params.sort);
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
     const queryString = searchParams.toString();
-    const endpoint = `/api/orders${queryString ? `?${queryString}` : ""}`;
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        elements: Array<{
-          id: string;
-          customerId: number;
-          storeId: number;
-          voucherId: number | null;
-          finalPrice: number;
-          note: string;
-          paymentId: number;
-        }>;
-        totalElements: number;
-      };
+    const endpoint = `/secured/rest/v1/orders${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      customerId: string;
+      customerName: string;
+      storeId: number;
+      voucherCode: string | null;
+      finalPrice: number;
+      note: string | null;
+      paymentMethodName: string;
     }>(endpoint);
-    return res.data;
+
+    return {
+      elements: response.data.content,
+      totalElements: response.data.totalElements,
+    };
   },
 
   getById: async (id: string) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
+    const response = await apiCallWithResponse<{
+      id: string;
+      customerId: string;
+      customerName: string;
+      saleLines: Array<{
         id: string;
-        customerId: number;
-        storeId: number;
-        voucherId: number | null;
-        finalPrice: number;
-        note: string;
-        paymentId: number;
-      };
-    }>(`/api/orders/${id}`);
-    return res.data;
+        saleOrderId: string;
+        productId: string;
+        productName: string;
+        qtyOrdered: number;
+        unitPrice: number;
+        totalPrice: number;
+      }>;
+      storeId: number;
+      voucherCode: string | null;
+      finalPrice: number;
+      note: string | null;
+      paymentMethodName: string;
+    }>(`/secured/rest/v1/orders/${id}`);
+
+    return response.data;
   },
 
-  create: async (order: {
-    customerId: string;
-    storeId: string;
-    voucherId: string;
-    note: string;
-    paymentId: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        customerId: number;
-        storeId: number;
-        voucherId: number | null;
-        finalPrice: number;
-        note: string;
-        paymentId: number;
-      };
-    }>("/api/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        ...order,
-        customerId: parseInt(order.customerId),
-        storeId: parseInt(order.storeId),
-        voucherId: order.voucherId ? parseInt(order.voucherId) : null,
-        paymentId: parseInt(order.paymentId),
-      }),
-    });
-    return res.data;
-  },
+create: async (order: {
+  customerId: string;
+  storeId: number;
+  voucherId?: number | null;
+  note: string;
+  paymentId: number;
+  lines: Array<{
+    productId: number;
+    qtyOrdered: number;
+    unitPrice: number;
+  }>;
+}) => {
+  const response = await apiCallWithResponse<any>('/secured/rest/v1/orders', {
+    method: 'POST',
+    body: JSON.stringify(order),
+  });
 
-  update: async (id: string, order: {
-    customerId: string;
-    storeId: string;
-    voucherId: string;
-    note: string;
-    paymentId: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        customerId: number;
-        storeId: number;
-        voucherId: number | null;
-        finalPrice: number;
-        note: string;
-        paymentId: number;
-      };
-    }>(`/api/orders/${id}`, {
-      method: "PUT",
+  return response.data;
+},
+
+  update: async (
+    id: string,
+    order: {
+      customerId: string;
+      storeId: string;
+      voucherId: string;
+      note: string;
+      paymentId: string;
+    },
+  ) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      customerId: string;
+      customerName: string;
+      storeId: number;
+      voucherCode: string | null;
+      finalPrice: number;
+      note: string | null;
+      paymentMethodName: string;
+    }>(`/secured/rest/v1/orders/${id}`, {
+      method: 'PUT',
       body: JSON.stringify({
-        ...order,
-        customerId: parseInt(order.customerId),
+        customerId: order.customerId,
         storeId: parseInt(order.storeId),
-        voucherId: order.voucherId ? parseInt(order.voucherId) : null,
-        paymentId: parseInt(order.paymentId),
+        voucherCode: order.voucherId || null,
+        note: order.note,
+        paymentMethodName: order.paymentId,
       }),
     });
-    return res.data;
+
+    return response.data;
   },
 
   delete: async (id: string) => {
-    await apiCall<null>(`/api/orders/${id}`, {
-      method: "DELETE",
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/orders/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
     });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const apiResponse = await response.json() as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
   },
 
   getCount: async (params?: { query?: string }) => {
     const searchParams = new URLSearchParams();
-    if (params?.query) searchParams.append("query", params.query);
+    if (params?.query) searchParams.append('query', params.query);
+
     const queryString = searchParams.toString();
-    const endpoint = `/api/orders/count${queryString ? `?${queryString}` : ""}`;
-    const res = await apiCall<{ code: number; message: string; data: number }>(endpoint);
-    return res.data;
+    const endpoint = `/secured/rest/v1/orders/count${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithResponse<number>(endpoint);
+    return response.data;
   },
 
-  getOrderDetails: async (orderId: string) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: Array<{
-        id: string;
-        orderId: string;
-        productId: number;
-        productName: string;
-        quantity: number;
-        unitPrice: number;
-        totalPrice: number;
-      }>;
-    }>(`/api/orders/details/summary/${orderId}`);
-    return res.data;
+  search: async (query: string, limit: number = 10) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('query', query);
+    searchParams.append('limit', limit.toString());
+    searchParams.append('offset', '0');
+
+    const endpoint = `/secured/rest/v1/orders?${searchParams.toString()}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      customerId: string;
+      customerName: string;
+      storeId: number;
+      voucherCode: string | null;
+      finalPrice: number;
+      note: string | null;
+      paymentMethodName: string;
+    }>(endpoint);
+
+    return response.data.content.map(order => ({
+      ...order,
+      displayText: `Đơn hàng ${order.id} - ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.finalPrice)}`,
+    }));
   },
 };
 
-// ========== DASHBOARD API ==========
+//dashboard API
 export const dashboardApi = {
   getSummary: async () => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        totalProducts: number;
-        todayOrders: number;
-        monthlyRevenue: number;
-        totalCustomer: number;
-      };
-    }>("/api/summary");
-    return res.data;
+    const response = await apiCallWithResponse<{
+      totalProducts: number;
+      todayOrders: number;
+      monthlyRevenue: number;
+      totalCustomer: number;
+    }>('/secured/rest/v1/summary');
+    return response.data;
   },
 
-  getTopProducts: async (days: number = 30, noProducts: number = 4) => {
-    const searchParams = new URLSearchParams();
-    searchParams.append("days", days.toString());
-    searchParams.append("noProducts", noProducts.toString());
-    const queryString = searchParams.toString();
-    const endpoint = `/api/orders/most?${queryString}`;
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: Array<[number, string, number]>;
-    }>(endpoint);
-    return res.data.map(([id, name, unitPrice]) => ({
-      id: String(id),
-      name,
-      unitPrice,
-    }));
-  },
+getTopProducts: async (days: number = 30, noProducts: number = 4) => {
+  const searchParams = new URLSearchParams();
+  searchParams.append('days', days.toString());
+  searchParams.append('noProducts', noProducts.toString());
 
-  getRecentOrders: async (limit: number = 4) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: Array<{
-        id: string;
-        customerName: string;
-        finalPrice: number;
-        status: string;
-      }>;
-    }>(`/api/orders/recent?limit=${limit}`);
-    return res.data.map((order) => ({
-      id: order.id,
-      customer: order.customerName,
-      total: order.finalPrice,
-      status: order.status,
-    }));
-  },
-};
+  const endpoint = `/secured/rest/v1/orders/most?${searchParams.toString()}`;
 
-// ========== STORE STOCK API ==========
+  const response = await apiCallWithResponse<
+    Array<{
+      id: string;
+      sku: string;
+      name: string;
+      description: string;
+      unitPrice: number;
+      categoryId: number;
+      totalQuantitySold: number;
+    }>
+  >(endpoint);
+
+  return response.data;
+},
+}
+
+
+//storeStock API
 export const storeStockApi = {
   getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
-    if (params?.query) searchParams.append("query", params.query);
-    if (params?.sort) searchParams.append("sort", params.sort);
-    if (params?.offset) searchParams.append("offset", params.offset.toString());
-    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.sort) searchParams.append('sort', params.sort);
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
     const queryString = searchParams.toString();
-    const endpoint = `/api/store-stock${queryString ? `?${queryString}` : ""}`;
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        elements: Array<{
-          id: string;
-          productId: number;
-          storeId: number;
-          quantity: number;
-        }>;
-        totalElements: number;
-      };
+    const endpoint = `/secured/rest/v1/batch-stocks${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      productId: number;
+      storeId: number;
+      quantity: number;
     }>(endpoint);
-    return res.data;
+
+    return {
+      elements: response.data.content,
+      totalElements: response.data.totalElements,
+    };
   },
 
   getById: async (id: string) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        productId: number;
-        storeId: number;
-        quantity: number;
-      };
-    }>(`/api/store-stock/${id}`);
-    return res.data;
+    const response = await apiCallWithResponse<{
+      id: string;
+      productId: number;
+      storeId: number;
+      quantity: number;
+    }>(`/secured/rest/v1/batch-stocks/${id}`);
+
+    return response.data;
   },
 
-  create: async (stock: {
-    productId: string;
-    storeId: string;
-    quantity: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        productId: number;
-        storeId: number;
-        quantity: number;
-      };
-    }>("/api/store-stock", {
-      method: "POST",
+  create: async (stock: { productId: string; storeId: string; quantity: string }) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      productId: number;
+      storeId: number;
+      quantity: number;
+    }>('/secured/rest/v1/batch-stocks', {
+      method: 'POST',
       body: JSON.stringify({
         productId: parseInt(stock.productId),
         storeId: parseInt(stock.storeId),
         quantity: parseInt(stock.quantity),
       }),
     });
-    return res.data;
+
+    return response.data;
   },
 
-  update: async (id: string, stock: {
-    productId: string;
-    storeId: string;
-    quantity: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        productId: number;
-        storeId: number;
-        quantity: number;
-      };
-    }>(`/api/store-stock/${id}`, {
-      method: "PUT",
+  update: async (
+    id: string,
+    stock: {
+      productId: string;
+      storeId: string;
+      quantity: string;
+    },
+  ) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      productId: number;
+      storeId: number;
+      quantity: number;
+    }>(`/secured/rest/v1/batch-stocks/${id}`, {
+      method: 'PUT',
       body: JSON.stringify({
         productId: parseInt(stock.productId),
         storeId: parseInt(stock.storeId),
         quantity: parseInt(stock.quantity),
       }),
     });
-    return res.data;
+
+    return response.data;
   },
 
   delete: async (id: string) => {
-    await apiCall<null>(`/api/store-stock/${id}`, {
-      method: "DELETE",
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/batch-stocks/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
     });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const apiResponse = await response.json() as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
   },
 
   getFiltered: async (storeId: number) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        elements: Array<{
-          id: string;
-          productId: number;
-          storeId: number;
-          quantity: number;
-        }>;
-        totalElements: number;
-      };
-    }>("/api/store-stock/filtered", {
-      method: "POST",
+    const response = await apiCallWithResponse<Array<{
+      id: string;
+      productId: number;
+      storeId: number;
+      quantity: number;
+    }>>('/secured/rest/v1/batch-stocks/filtered', {
+      method: 'POST',
       body: JSON.stringify({ storeId }),
     });
-    return res.data;
+
+    return {
+      elements: response.data,
+      totalElements: response.data.length,
+    };
   },
 };
 
-// ========== SUPPLIER API ==========
+//supplier API
 export const supplierApi = {
-  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?:number }) => {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
-    if (params?.query) searchParams.append("query", params.query);
-    if (params?.offset) searchParams.append("offset", params.offset.toString());
-    if (params?.limit) searchParams.append("limit", params.limit.toString());
-    if (params?.sort) searchParams.append("sort", params.sort);
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.sort) searchParams.append('sort', params.sort);
+
     const queryString = searchParams.toString();
-    const endpoint = `/api/suppliers${queryString ? `?${queryString}` : ""}`;
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        elements: Array<{
-          id: string;
-          name: string;
-          address: string;
-          contact: string;
-        }>;
-        totalElements: number;
-      };
+    const endpoint = `/secured/rest/v1/suppliers${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      name: string;
+      address: string;
+      contact: string;
     }>(endpoint);
-    return res.data;
+
+    return {
+      elements: response.data.content,
+      totalElements: response.data.totalElements,
+    };
   },
 
   getById: async (id: string) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        name: string;
-        address: string;
-        contact: string;
-      };
-    }>(`/api/suppliers/${id}`);
-    return res.data;
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      address: string;
+      contact: string;
+    }>(`/secured/rest/v1/suppliers/${id}`);
+
+    return response.data;
   },
 
-  create: async (supplier: {
-    name: string;
-    address: string;
-    contact: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        name: string;
-        address: string;
-        contact: string;
-      };
-    }>("/api/suppliers", {
-      method: "POST",
+  create: async (supplier: { name: string; address: string; contact: string }) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      address: string;
+      contact: string;
+    }>(`/secured/rest/v1/suppliers`, {
+      method: 'POST',
       body: JSON.stringify(supplier),
     });
-    return res.data;
+
+    return response.data;
   },
 
-  update: async (id: string, supplier: {
-    name: string;
-    address: string;
-    contact: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        name: string;
-        address: string;
-        contact: string;
-      };
-    }>(`/api/suppliers/${id}`, {
-      method: "PUT",
+  update: async (
+    id: string,
+    supplier: {
+      name: string;
+      address: string;
+      contact: string;
+    },
+  ) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      address: string;
+      contact: string;
+    }>(`/secured/rest/v1/suppliers/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(supplier),
     });
-    return res.data;
+
+    return response.data;
   },
 
   delete: async (id: string) => {
-    await apiCall<null>(`/api/suppliers/${id}`, {
-      method: "DELETE",
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/suppliers/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
     });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const apiResponse = await response.json() as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
   },
 };
 
-// ========== VOUCHER API ==========
+//voucher API
 export const voucherApi = {
-  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?:number }) => {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
-    if (params?.query) searchParams.append("query", params.query);
-    if (params?.offset) searchParams.append("offset", params.offset.toString());
-    if (params?.limit) searchParams.append("limit", params.limit.toString());
-    if (params?.sort) searchParams.append("sort", params.sort);
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.sort) searchParams.append('sort', params.sort);
+
     const queryString = searchParams.toString();
-    const endpoint = `/api/vouchers${queryString ? `?${queryString}` : ""}`;
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        elements: Array<{
-          id: string;
-          code: string;
-          description: string;
-          discountPercent: number;
-          discountValue: number;
-          startTime: string;
-          expirationTime: string;
-        }>;
-        totalElements: number;
-      };
+    const endpoint = `/secured/rest/v1/vouchers${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      code: string;
+      description: string;
+      discountPercent: number;
+      discountValue: number;
+      startTime: string;
+      expirationTime: string;
     }>(endpoint);
-    return res.data;
+
+    return {
+      elements: response.data.content,
+      totalElements: response.data.totalElements,
+    };
   },
 
   getById: async (id: string) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        code: string;
-        description: string;
-        discountPercent: number;
-        discountValue: number;
-        startTime: string;
-        expirationTime: string;
-      };
-    }>(`/api/vouchers/${id}`);
-    return res.data;
+    const response = await apiCallWithResponse<{
+      id: string;
+      code: string;
+      description: string;
+      discountPercent: number;
+      discountValue: number;
+      startTime: string;
+      expirationTime: string;
+    }>(`/secured/rest/v1/vouchers/${id}`);
+
+    return response.data;
   },
 
   create: async (voucher: {
@@ -747,55 +814,343 @@ export const voucherApi = {
     startTime: string;
     expirationTime: string;
   }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        code: string;
-        description: string;
-        discountPercent: number;
-        discountValue: number;
-        startTime: string;
-        expirationTime: string;
-      };
-    }>("/api/vouchers", {
-      method: "POST",
+    const response = await apiCallWithResponse<{
+      id: string;
+      code: string;
+      description: string;
+      discountPercent: number;
+      discountValue: number;
+      startTime: string;
+      expirationTime: string;
+    }>(`/secured/rest/v1/vouchers`, {
+      method: 'POST',
       body: JSON.stringify(voucher),
     });
-    return res.data;
+
+    return response.data;
   },
 
-  update: async (id: string, voucher: {
-    code: string;
-    description: string;
-    discountPercent: number;
-    discountValue: number;
-    startTime: string;
-    expirationTime: string;
-  }) => {
-    const res = await apiCall<{
-      code: number;
-      message: string;
-      data: {
-        id: string;
-        code: string;
-        description: string;
-        discountPercent: number;
-        discountValue: number;
-        startTime: string;
-        expirationTime: string;
-      };
-    }>(`/api/vouchers/${id}`, {
-      method: "PUT",
+  update: async (
+    id: string,
+    voucher: {
+      code: string;
+      description: string;
+      discountPercent: number;
+      discountValue: number;
+      startTime: string;
+      expirationTime: string;
+    },
+  ) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      code: string;
+      description: string;
+      discountPercent: number;
+      discountValue: number;
+      startTime: string;
+      expirationTime: string;
+    }>(`/secured/rest/v1/vouchers/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(voucher),
     });
-    return res.data;
+
+    return response.data;
   },
 
   delete: async (id: string) => {
-    await apiCall<null>(`/api/vouchers/${id}`, {
-      method: "DELETE",
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/vouchers/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
     });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const apiResponse = await response.json() as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
+  },
+};
+
+export const customersApi = {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.sort) searchParams.append('sort', params.sort);
+
+    const queryString = searchParams.toString();
+    const endpoint = `/secured/rest/v1/customers${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      name: string;
+      phone: string;
+      gender: string;
+      point: number;
+    }>(endpoint);
+
+    return {
+      elements: response.data.content,
+      totalElements: response.data.totalElements,
+    };
+  },
+
+  getById: async (id: string) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      phone: string;
+      gender: string;
+      point: number;
+    }>(`/secured/rest/v1/customers/${id}`);
+
+    return response.data;
+  },
+
+  create: async (customer: {
+    name: string;
+    phone: string;
+    gender: string;
+    point: number;
+  }) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      phone: string;
+      gender: string;
+      point: number;
+    }>(`/secured/rest/v1/customers`, {
+      method: 'POST',
+      body: JSON.stringify(customer),
+    });
+
+    return response.data;
+  },
+
+  update: async (
+    id: string,
+    customer: {
+      name: string;
+      phone: string;
+      gender: string;
+      point: number;
+    },
+  ) => {
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      phone: string;
+      gender: string;
+      point: number;
+    }>(`/secured/rest/v1/customers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(customer),
+    });
+
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/customers/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const apiResponse = await response.json() as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
+  },
+
+  search: async (query: string, limit: number = 10) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('query', query);
+    searchParams.append('limit', limit.toString());
+    searchParams.append('offset', '0');
+
+    const endpoint = `/secured/rest/v1/customers?${searchParams.toString()}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      name: string;
+      phone: string;
+      gender: string;
+      point: number;
+    }>(endpoint);
+
+    return response.data.content.map(customer => ({
+      ...customer,
+      displayText: `${customer.name} (${customer.phone})`,
+    }));
+  },
+};
+
+export const paymentMethodApi = {
+  getAll: async () => {
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      code: string;
+      name: string;
+    }>('/secured/rest/v1/payment-method');
+
+    return {
+      elements: response.data.content,  
+      totalElements: response.data.totalElements,
+    };
+  },
+};
+
+
+
+export interface BatchDto {
+  id: string;
+  batchCode: string;
+  productId: number | string;
+  supplierId: number;
+  originalQty: number;
+  importedPrice: number; 
+  manufactureDate: string | any; 
+  expiryDate: string | any; 
+  arrivalDate: string | any; 
+}
+
+export const batchApi = {
+  getByProduct: async (productId: string | number) => {
+    const response = await apiCallWithResponse<BatchDto[]>(
+      `/secured/rest/v1/batch/by-product?productId=${productId}`
+    );
+    return response.data;
+  },
+
+  getByProducts: async (productIds: string[]) => {
+    const productIdsParam = productIds.join(',');
+    console.log('🌐 Sending batch request with productIds:', productIdsParam);
+    
+    const response = await apiCallWithResponse<BatchDto[]>(
+      `/secured/rest/v1/batch/by-product?productIds=${productIdsParam}`
+    );
+    
+    console.log('📦 Batch API response:', response.data);
+    return response.data;
+  },
+
+  getAll: async (params?: { 
+    query?: string; 
+    sort?: string; 
+    offset?: number; 
+    limit?: number;
+    productId?: string | number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.sort) searchParams.append('sort', params.sort);
+    if (params?.productId) searchParams.append('productId', params.productId.toString());
+
+    const queryString = searchParams.toString();
+    const endpoint = `/secured/rest/v1/batch${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<BatchDto>(endpoint);
+
+    return {
+      elements: response.data.content,
+      totalElements: response.data.totalElements,
+    };
+  },
+
+  getById: async (id: string) => {
+    const response = await apiCallWithResponse<BatchDto>(
+      `/secured/rest/v1/batch/${id}`
+    );
+    return response.data;
+  },
+
+  create: async (batch: {
+    batchCode: string;
+    productId: number | string; // ← Fix: Accept both types
+    supplierId: number;
+    originalQty: number;
+    importedPrice: number;
+    manufactureDate: string;
+    expiryDate: string;
+    arrivalDate: string;
+  }) => {
+    const response = await apiCallWithResponse<BatchDto>(
+      `/secured/rest/v1/batch`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          ...batch,
+          productId: typeof batch.productId === 'string' ? parseInt(batch.productId) : batch.productId
+        }),
+      }
+    );
+    return response.data;
+  },
+
+  update: async (
+    id: string,
+    batch: {
+      batchCode: string;
+      productId: number;
+      supplierId: number;
+      originalQty: number;
+      importedPrice: number;
+      manufactureDate: string;
+      expiryDate: string;
+      arrivalDate: string;
+    }
+  ) => {
+    const response = await apiCallWithResponse<BatchDto>(
+      `/secured/rest/v1/batch/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(batch),
+      }
+    );
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/batch/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const apiResponse = await response.json() as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
   },
 };

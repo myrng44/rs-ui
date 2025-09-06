@@ -4,7 +4,6 @@ export default function About() {
   return (
     <Layout>
       <section className="max-w-5xl mx-auto py-10 px-2 sm:px-4 space-y-12">
-        {/* Header */}
         <header>
           <h1 className="text-4xl font-extrabold text-primary mb-3 tracking-tight drop-shadow-sm">
             Về chúng tôi
@@ -14,7 +13,6 @@ export default function About() {
           </p>
         </header>
 
-        {/* Vision & Mission */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 hover:shadow-xl transition-shadow duration-200">
             <h2 className="text-xl font-bold text-primary mb-3 flex items-center gap-2">
@@ -34,7 +32,6 @@ export default function About() {
           </div>
         </div>
 
-        {/* Features */}
         <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
           <h2 className="text-2xl font-extrabold text-primary mb-8 text-center tracking-tight">
             Tính năng nổi bật

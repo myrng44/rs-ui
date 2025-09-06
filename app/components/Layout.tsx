@@ -1,21 +1,35 @@
 import type { ReactNode } from "react";
-// Layout.tsx
-import { Sidebar } from "./Sidebar";
+import { useState } from "react";
 import { Navbar } from "./Navbar";
+import { Sidebar } from "./Sidebar";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="flex pt-16">
-        <Sidebar />
-        <main className="flex-1 p-6 ml-64">
-          {children}
-        </main>
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar cố định bên trái, chiếm full chiều cao */}
+      <Sidebar
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        className="fixed top-0 left-0 h-screen z-40"
+      />
+
+      {/* Phần nội dung bên phải (chừa chỗ cho sidebar bằng margin-left động) */}
+      <div
+        className={`flex-1 transition-all duration-300 ${
+          isCollapsed ? "ml-20" : "ml-64"
+        } flex flex-col min-h-screen`}
+      >
+        {/* Navbar nằm trong vùng nội dung bên phải, sticky ở top của vùng đó */}
+        <Navbar toggleSidebar={() => setIsCollapsed((v) => !v)} isCollapsed={isCollapsed} />
+
+        {/* Nội dung chính */}
+<main className="flex-1 p-6 bg-background pt-16">{children}</main>
       </div>
     </div>
   );

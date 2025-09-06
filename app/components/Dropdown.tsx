@@ -11,7 +11,7 @@ interface DropdownProps {
   onChange: (e: ChangeEvent<HTMLSelectElement>) => void;
   options: DropdownOption[];
   required?: boolean;
-  readOnly?: boolean; 
+  readonly?: boolean; 
   className?: string;
   error?: string;
   helperText?: string;
@@ -23,7 +23,7 @@ export default function Dropdown({
   onChange,
   options,
   required = false,
-  readOnly = false,
+  readonly = false,
   className = "",
   error,
   helperText,
@@ -40,13 +40,13 @@ export default function Dropdown({
         className={`
           w-full p-2 border rounded-md focus:outline-none focus:ring-2
           ${error ? "border-error focus:ring-error" : "border-gray-300 focus:ring-primary"}
-          ${readOnly ? "bg-gray-100 text-gray-700 cursor-default" : ""}
+          ${readonly ? "bg-gray-100 text-gray-700 cursor-default" : ""}
           disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
           transition
         `}
         value={value}
         onChange={onChange}
-        disabled={readOnly}
+        disabled={readonly}
         aria-invalid={!!error}
       >
         {options.map((opt) => (

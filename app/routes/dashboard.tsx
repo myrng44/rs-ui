@@ -1,9 +1,6 @@
-
-import { useState, useEffect } from "react";
-import { Layout } from "~/components/Layout";
-import { dashboardApi } from "~/utils/api";
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Package, ShoppingCart, DollarSign, Users } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Layout } from '~/components/Layout';
+import { dashboardApi, ordersApi } from '~/utils/api';
 
 interface DashboardSummary {
   totalProducts: number;
@@ -16,270 +13,268 @@ interface TopProduct {
   id: string;
   name: string;
   unitPrice: number;
+  totalQuantitySold: number;
 }
 
-interface Order {
+interface RecentOrder {
   id: string;
-  customer: string;
-  total: string;
-  status: string;
+  customerId: string;
+  customerName: string;
+  storeId: number;
+  voucherCode: string | null;
+  finalPrice: number;
+  note: string | null;
+  paymentMethodName: string;
 }
+
+// global request id để chống race-condition
+let activeRequestId = 0;
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
+  const [selectedDays, setSelectedDays] = useState(7);
+  const [loadingTopProducts, setLoadingTopProducts] = useState(false);
+  const [topProductsError, setTopProductsError] = useState('');
 
   useEffect(() => {
-    loadDashboardData();
+    const loadDashboard = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        const [summaryRes, recentOrdersRes] = await Promise.all([
+          dashboardApi.getSummary(),
+          ordersApi.getAll({ offset: 0, limit: 5, sort: '-createdTime' }),
+        ]);
+
+        setSummary(summaryRes);
+        setRecentOrders((recentOrdersRes && (recentOrdersRes as any).elements) || []);
+
+        // Tải top products cho ngày mặc định
+        await loadTopProducts(selectedDays);
+      } catch (err: any) {
+        console.error('Error loading dashboard data', err);
+        setError(err?.message || 'Không thể tải dữ liệu dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadDashboardData = async () => {
+  // Load top products (có dedupe + filter qty > 0 + race guard)
+  const loadTopProducts = async (days: number) => {
+    const requestId = ++activeRequestId;
     try {
-      setLoading(true);
-      const [summaryData, productsData, ordersData] = await Promise.all([
-        dashboardApi.getSummary(),
-        dashboardApi.getTopProducts(7, 4),
-        dashboardApi.getRecentOrders(4),
-      ]);
-      setSummary(summaryData);
-      setTopProducts(productsData);
-      setRecentOrders(
-        ordersData.map((order) => ({
-          id: order.id,
-          customer: order.customer,
-          total: formatPrice(order.total),
-          status: order.status,
-        }))
-      );
-      setError("");
-    } catch (err: any) {
-      if (err.status === 401) {
-        setError("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-      } else if (err.status === 404) {
-        setError("Không tìm thấy dữ liệu.");
-      } else {
-        setError("Không thể tải dữ liệu dashboard. Vui lòng thử lại.");
+      // reset UI ngay
+      setLoadingTopProducts(true);
+      setTopProductsError('');
+      setTopProducts([]);
+
+      const productsData = await dashboardApi.getTopProducts(days, 5);
+      console.debug('dashboard.getTopProducts response', { requestId, days, productsData });
+
+      // Bỏ nếu request đã cũ
+      if (requestId !== activeRequestId) {
+        console.debug('Discarding stale response', { requestId, activeRequestId });
+        return;
       }
+
+      if (!Array.isArray(productsData)) {
+        setTopProducts([]);
+        setTopProductsError('Dữ liệu sản phẩm bán chạy không hợp lệ');
+        return;
+      }
+
+      // 1) map + filter qty > 0
+      const mapped: TopProduct[] = productsData
+        .map((p: any) => ({
+          id: String(p?.id ?? ''),
+          name: p?.name ?? '',
+          unitPrice: Number(p?.unitPrice ?? 0),
+          totalQuantitySold: Number(p?.totalQuantitySold ?? 0),
+        }))
+        .filter((p) => !Number.isNaN(p.totalQuantitySold) && p.totalQuantitySold > 0);
+
+      // 2) dedupe theo id (nếu có trùng giữ phần tử có totalQuantitySold lớn nhất)
+      const dedupMap = new Map<string, TopProduct>();
+      for (const p of mapped) {
+        const key = p.id;
+        const existing = dedupMap.get(key);
+        if (!existing) {
+          dedupMap.set(key, p);
+        } else {
+          // nếu có bản ghi cũ, giữ bản có qty lớn hơn
+          if (p.totalQuantitySold > existing.totalQuantitySold) {
+            dedupMap.set(key, p);
+          }
+        }
+      }
+      const uniqueList = Array.from(dedupMap.values());
+
+      // Nếu request cũ khi mapping hoàn tất -> bỏ
+      if (requestId !== activeRequestId) {
+        console.debug('Discarding after mapping (stale)', { requestId, activeRequestId });
+        return;
+      }
+
+      setTopProducts(uniqueList);
+
+      if (uniqueList.length === 0) {
+        setTopProductsError('Không có sản phẩm bán chạy (tất cả tổng bán = 0)');
+      }
+    } catch (err: any) {
+      console.error('Error loading top products', err);
+      if (requestId !== activeRequestId) return;
+      setTopProducts([]);
+      setTopProductsError(err?.message || 'Lỗi tải dữ liệu sản phẩm');
     } finally {
-      setLoading(false);
+      if (requestId === activeRequestId) {
+        setLoadingTopProducts(false);
+      }
     }
   };
 
+  const handleDaysChange = (days: number) => {
+    setSelectedDays(days);
+    // loadTopProducts sẽ reset UI ngay ở đầu
+    loadTopProducts(days);
+  };
+
   const formatPrice = (price: number) =>
-    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
-  const formatNumber = (num: number) => new Intl.NumberFormat("vi-VN").format(num);
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(price ?? 0));
 
-  const stats = summary
-    ? [
-        {
-          label: "Tổng sản phẩm",
-          value: formatNumber(summary.totalProducts),
-          icon: Package,
-          color: "bg-gradient-to-br from-blue-600 to-blue-400",
-        },
-        {
-          label: "Đơn hàng hôm nay",
-          value: formatNumber(summary.todayOrders),
-          icon: ShoppingCart,
-          color: "bg-gradient-to-br from-green-600 to-emerald-400",
-        },
-        {
-          label: "Doanh thu tháng",
-          value: formatPrice(summary.monthlyRevenue),
-          icon: DollarSign,
-          color: "bg-gradient-to-br from-yellow-600 to-orange-400",
-        },
-        {
-          label: "Tổng khách hàng",
-          value: formatNumber(summary.totalCustomer),
-          icon: Users,
-          color: "bg-gradient-to-br from-purple-600 to-pink-400",
-        },
-      ]
-    : [];
+  const formatNumber = (num: number) => new Intl.NumberFormat('vi-VN').format(Number(num ?? 0));
 
-  const statusStyles: { [key: string]: string } = {
-    "Đã giao": "bg-green-100 text-green-700",
-    "Đang xử lý": "bg-yellow-100 text-yellow-700",
-    "Đã xác nhận": "bg-blue-100 text-blue-700",
-    "Đang giao": "bg-purple-100 text-purple-700",
+  const getStatsData = () => {
+    if (!summary) return [];
+    return [
+      { label: 'Tổng sản phẩm', value: formatNumber(summary.totalProducts), icon: '📦' },
+      { label: 'Đơn hàng hôm nay', value: formatNumber(summary.todayOrders), icon: '🛒' },
+      { label: 'Doanh thu tháng', value: formatPrice(summary.monthlyRevenue), icon: '💰' },
+      { label: 'Tổng khách hàng', value: formatNumber(summary.totalCustomer), icon: '👥' },
+    ];
   };
 
   return (
     <Layout>
-      <div className="container mx-auto space-y-8 p-6">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <span className="text-blue-600">📊</span> Dashboard
-          </h1>
-          <p className="text-black mt-1">Tổng quan kinh doanh và thống kê hiệu suất</p>
-        </motion.div>
-        {/* <button
-          onClick={loadDashboardData}
-          className=" mb-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:to-blue-500 transition-colors duration-200"        >
-          Làm mới dữ liệu
-        </button> */}
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">Tổng quan kinh doanh và thống kê</p>
+        </header>
 
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-lg flex items-center gap-2"
-            >
-              <span>{error}</span>
-              <button
-                onClick={loadDashboardData}
-                className="ml-auto text-sm text-red-600 hover:text-red-800"
-              >
-                Thử lại
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">{error}</div>}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-32 bg-gray-100 animate-pulse rounded-xl shadow-sm"
-                />
-              ))
-            : stats.map((stat, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.1 }}
-                  whileHover={{ scale: 1.03 }}
-                  className={`p-6 rounded-xl text-white shadow-lg ${stat.color} transform transition-all duration-300`}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-medium opacity-90">{stat.label}</p>
-                      <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                    </div>
-                    <stat.icon className="w-10 h-10 opacity-80" />
+                <div key={i} className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
+                  <div className="animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-8 bg-gray-200 rounded w-1/2 mb-1"></div>
                   </div>
-                </motion.div>
+                </div>
+              ))
+            : getStatsData().map((stat, idx) => (
+                <div key={idx} className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">{stat.label}</p>
+                      <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    </div>
+                    <div className="text-3xl">{stat.icon}</div>
+                  </div>
+                </div>
               ))}
         </div>
 
-        {/* Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Orders */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
-          >
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-blue-600" /> Đơn hàng gần đây
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 text-gray-600">
-                    <th className="py-3 font-semibold">Mã</th>
-                    <th className="py-3 font-semibold">Khách hàng</th>
-                    <th className="py-3 font-semibold">Tổng</th>
-                    <th className="py-3 font-semibold">Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading
-                    ? Array.from({ length: 4 }).map((_, i) => (
-                        <tr key={i} className="border-b">
-                          <td className="py-3">
-                            <div className="h-4 bg-gray-100 animate-pulse rounded" />
-                          </td>
-                          <td>
-                            <div className="h-4 bg-gray-100 animate-pulse rounded" />
-                          </td>
-                          <td>
-                            <div className="h-4 bg-gray-100 animate-pulse rounded" />
-                          </td>
-                          <td>
-                            <div className="h-4 bg-gray-100 animate-pulse rounded" />
-                          </td>
-                        </tr>
-                      ))
-                    : recentOrders.map((order, i) => (
-                        <motion.tr
-                          key={order.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.1 }}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="py-3 font-medium">{order.id}</td>
-                          <td className="py-3">{order.customer}</td>
-                          <td className="py-3">{order.total}</td>
-                          <td className="py-3">
-                            <span
-                              className={`px-3 py-1 text-xs font-medium rounded-full ${statusStyles[order.status]}`}
-                            >
-                              {order.status}
-                            </span>
-                          </td>
-                        </motion.tr>
-                      ))}
-                </tbody>
-              </table>
+          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 className="text-lg font-semibold mb-4">Đơn hàng gần đây</h2>
+            <div className="space-y-3">
+              {recentOrders.length > 0 ? (
+                recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">{order.customerName || `Khách #${order.customerId}`}</p>
+                      <p className="text-sm text-gray-600">Mã đơn: {order.id}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">{formatPrice(order.finalPrice)}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center p-4 text-gray-600">Không có đơn hàng gần đây</div>
+              )}
             </div>
-          </motion.div>
+          </div>
 
           {/* Top Products */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
-          >
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-red-600">🔥</span> Sản phẩm bán chạy
-            </h2>
-            <div className="space-y-4">
-              {loading
-                ? Array.from({ length: 4 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-16 bg-gray-100 animate-pulse rounded-lg"
-                    />
-                  ))
-                : topProducts.length > 0
-                ? topProducts.map((product, i) => (
-                    <motion.div
-                      key={product.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      whileHover={{ scale: 1.02 }}
-                      className="flex justify-between items-center p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-200"
+          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Sản phẩm bán chạy</h2>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">Trong:</span>
+                <div className="flex space-x-1">
+                  {[1, 3, 7, 15, 30].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => handleDaysChange(d)}
+                      className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${
+                        selectedDays === d ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      disabled={loadingTopProducts}
                     >
-                      <div>
-                        <p className="font-medium text-gray-900">{product.name}</p>
-                        <p className="text-sm text-gray-500">Top #{i + 1}</p>
-                      </div>
-                      <p className="font-semibold text-blue-600">{formatPrice(product.unitPrice)}</p>
-                    </motion.div>
-                  ))
-                : (
-                  <p className="text-gray-500 text-center py-4">Không có dữ liệu sản phẩm</p>
-                )}
+                      {d}d
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </motion.div>
+
+            {topProductsError && <div className="text-sm text-red-600 bg-red-50 p-2 rounded-md mb-3">{topProductsError}</div>}
+
+            <div className="space-y-3">
+              {loadingTopProducts ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="animate-pulse flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                    <div className="animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </div>
+                  </div>
+                ))
+              ) : topProducts.length > 0 ? (
+                topProducts.map((product, index) => (
+                  <div key={`${selectedDays}-${product.id}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">{product.name}</p>
+                      <p className="text-sm text-gray-600">Top #{index + 1}</p>
+                      <p className="text-sm text-gray-600">{formatNumber(product.totalQuantitySold)} đã bán</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">{formatPrice(product.unitPrice)}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center p-4 text-gray-600">{`Không có dữ liệu sản phẩm bán chạy trong ${selectedDays} ngày gần đây`}</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </Layout>

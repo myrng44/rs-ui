@@ -19,7 +19,7 @@ export default function Login() {
 
     try {
       const res = await authApi.login(formData);
-      const token = res?.data?.token;
+      const token = res?.token;
       if (!token) {
         setError("Không nhận được token từ server");
         return;
@@ -28,7 +28,7 @@ export default function Login() {
       authLogin(token);
       window.location.href = "/";
     } catch (err: any) {
-      if (err?.response?.status === 401) {
+      if (err?.status === 401) {
         setError("Tên đăng nhập hoặc mật khẩu không đúng");
       } else {
         setError("Lỗi kết nối đến server");
@@ -86,7 +86,7 @@ export default function Login() {
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r hover:3E5F44 from-cyan-700 to-cyan-400  hover:to-secondary/90"
+              className="w-full bg-gradient-to-r from-cyan-700 to-cyan-400 hover:from-cyan-800 hover:to-cyan-500"
               disabled={isLoading}
             >
               {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
@@ -106,11 +106,13 @@ export default function Login() {
         </motion.div>
       </div>
 
-     <div className="hidden lg:flex lg:w-1/5 items-center justify-center bg-white p-6">
-          <img className="max-w-[300px] w-full h-auto object-contain" src = "https://tse2.mm.bing.net/th/id/OIP.pvheUab0fyXQJAHbht8ztwHaFS?rs=1&pid=ImgDetMain&o=7&rm=3"
-          alt="HUS Logo" />
-     </div>
-
-  </div>
+      <div className="hidden lg:flex lg:w-1/5 items-center justify-center bg-white p-6">
+        <img 
+          className="max-w-[300px] w-full h-auto object-contain" 
+          src="https://tse2.mm.bing.net/th/id/OIP.pvheUab0fyXQJAHbht8ztwHaFS?rs=1&pid=ImgDetMain&o=7&rm=3"
+          alt="HUS Logo" 
+        />
+      </div>
+    </div>
   );
 }

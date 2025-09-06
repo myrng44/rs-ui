@@ -45,41 +45,64 @@ const features = [
     link: "/stock",
     btn: "Quản lý Kho",
   },
+  {
+    icon: "🎫",
+    title: "Mã giảm giá",
+    desc: "Tạo và quản lý mã giảm giá",
+    link: "/vouchers",
+    btn: "Quản lý Mã giảm giá",
+  },
+  {
+    icon: "💳",
+    title: "Thanh toán",
+    desc: "Quản lý phương thức và giao dịch thanh toán",
+    link: "/payments",
+    btn: "Quản lý Thanh toán",
+  }
 ];
 
 export default function Home() {
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto px-4 py-10 space-y-12">
-        {/* Tiêu đề */}
-        <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold text-gray-900 tracking-tight">
-            Vanh Store
+      <div className="relative bg-gradient-to-b from-indigo-50 via-white to-white">
+        {/* Hero Section */}
+        <div className="max-w-6xl mx-auto px-6 py-20 text-center">
+          <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight">
+            CK Store
           </h1>
-          <p className="text-lg text-gray-600 max-w-xl mx-auto">
-            Hệ thống quản lý cửa hàng toàn diện, dễ sử dụng và hiện đại
+          <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+            Hệ thống quản lý cửa hàng toàn diện, dễ sử dụng và hiện đại – từ quản lý sản phẩm đến xử lý đơn hàng.
           </p>
         </div>
 
-        {/* Grid các tính năng */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((f, i) => (
-            <div
-              key={i}
-              className="group bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 p-6 flex flex-col items-center text-center"
-            >
-              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                {f.icon}
+        {/* Features Grid */}
+        <div className="max-w-6xl mx-auto px-6 pb-20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((f, i) => (
+              <div
+                key={i}
+                className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 border border-gray-100 p-8 flex flex-col items-center text-center relative overflow-hidden"
+              >
+                {/* Glow background */}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-indigo-50 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+
+                <div className="relative text-5xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                  {f.icon}
+                </div>
+                <h3 className="relative text-xl font-semibold text-gray-900 mb-3">
+                  {f.title}
+                </h3>
+                <p className="relative text-gray-600 mb-8 text-sm leading-relaxed">
+                  {f.desc}
+                </p>
+                <Link to={f.link} className="relative mt-auto">
+                  <Button size="sm" className="shadow-md hover:shadow-lg">
+                    {f.btn}
+                  </Button>
+                </Link>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {f.title}
-              </h3>
-              <p className="text-gray-600 mb-6 text-sm">{f.desc}</p>
-              <Link to={f.link} className="mt-auto">
-                <Button size="sm">{f.btn}</Button>
-              </Link>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </Layout>
