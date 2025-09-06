@@ -8,14 +8,16 @@ import { ProductForm } from "~/components/products/ProductForm";
 import { productsApi, batchApi } from "~/utils/api";
 import { AutocompleteSearchBar, type SearchField, type SearchResult } from "~/components/AutoCompleteSearchBar";
 import { Toast } from "~/components/Toast";
-import { Grid as GridIcon, List as ListIcon, Pencil, Trash2, Plus, Calendar, AlertTriangle } from "lucide-react";
+import { Grid as GridIcon, List as ListIcon, Pencil, Trash2, Plus, Eye, Calendar, AlertTriangle, Package } from "lucide-react";
 
 interface BatchInfo {
   id: string;
   batchCode: string;
-  manufactureDate: string;
+  manufactureDate: string;  
   expiryDate: string;
   originalQty: number;
+  importedPrice?: number;
+  arrivalDate?: string;
 }
 
 interface Product {
@@ -30,18 +32,31 @@ interface Product {
   stockQuantity?: number;
   category?: { name?: string } | null;
   supplier?: { name?: string } | null;
-  batches?: BatchInfo[];          
-  selectedBatch?: BatchInfo | null; 
+  batches?: BatchInfo[];
+  batchCount?: number;
 }
 
-function ProductCardGrid({
-  products,
-  onEdit,
-  onDelete,
+function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+    </svg>
+  );
+}
+
+function BatchModal({
+  isOpen,
+  onClose,
+  product,
+  batches,
+  loading = false,
 }: {
-  products: Product[];
-  onEdit: (p: Product) => void;
-  onDelete: (p: Product) => void;
+  isOpen: boolean;
+  onClose: () => void;
+  product: Product | null;
+  batches: BatchInfo[];
+  loading?: boolean;
 }) {
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("vi-VN", {
@@ -50,7 +65,12 @@ function ProductCardGrid({
     }).format(price);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("vi-VN");
+    if (!dateString) return "-";
+    try {
+      return new Date(dateString).toLocaleDateString("vi-VN");
+    } catch {
+      return "Ngày không hợp lệ";
+    }
   };
 
   const getDaysUntilExpiry = (expiryDate: string) => {
@@ -63,92 +83,167 @@ function ProductCardGrid({
 
   const getExpiryStatus = (expiryDate: string) => {
     const daysLeft = getDaysUntilExpiry(expiryDate);
-    if (daysLeft < 0) return { text: "Đã hết hạn", color: "text-red-600", bg: "bg-red-50" };
-    if (daysLeft <= 7) return { text: `${daysLeft} ngày`, color: "text-orange-600", bg: "bg-orange-50" };
-    if (daysLeft <= 30) return { text: `${daysLeft} ngày`, color: "text-yellow-600", bg: "bg-yellow-50" };
-    return { text: `${daysLeft} ngày`, color: "text-green-600", bg: "bg-green-50" };
+    if (daysLeft < 0) return { text: "Đã hết hạn", color: "text-red-600", bg: "bg-red-50 border-red-200" };
+    if (daysLeft <= 7) return { text: `${daysLeft} ngày`, color: "text-orange-600", bg: "bg-orange-50 border-orange-200" };
+    if (daysLeft <= 30) return { text: `${daysLeft} ngày`, color: "text-yellow-600", bg: "bg-yellow-50 border-yellow-200" };
+    return { text: `${daysLeft} ngày`, color: "text-green-600", bg: "bg-green-50 border-green-200" };
   };
+
+  if (!product) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Danh sách Batch - ${product.name}`} >
+      <div className="space-y-4">
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">Thông tin sản phẩm</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600">SKU:</span> <span className="font-medium">{product.sku}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">Giá bán:</span> <span className="font-medium">{formatPrice(product.unitPrice)}</span>
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8">
+            <Spinner className="w-8 h-8 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-500">Đang tải batch...</p>
+          </div>
+        ) : batches.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <Package className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+            <p>Chưa có batch nào cho sản phẩm này</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <h4 className="font-medium text-gray-900">Danh sách Batch ({batches.length})</h4>
+            <div className="max-h-96 overflow-y-auto space-y-3">
+              {batches.map((batch, index) => {
+                const expiryStatus = getExpiryStatus(batch.expiryDate);
+                return (
+                  <div key={batch.id} className={`border rounded-lg p-4 ${expiryStatus.bg}`}>
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h5 className="font-semibold text-gray-900 mb-1">
+                          Batch #{index + 1}: {batch.batchCode}
+                        </h5>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Số lượng:</span>{" "}
+                            <span className="font-medium">{batch.originalQty?.toLocaleString() || 0}</span>
+                          </div>
+                          {batch.importedPrice !== undefined && batch.importedPrice !== null && (
+                            <div>
+                              <span className="text-gray-600">Giá nhập:</span>{" "}
+                              <span className="font-medium">{formatPrice(batch.importedPrice)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${expiryStatus.bg} ${expiryStatus.color}`}>
+                        {expiryStatus.text}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="flex items-center">
+                        <Calendar className="w-4 h-4 mr-2 text-blue-500" />
+                        <div>
+                          <div className="text-gray-600">Ngày sản xuất</div>
+                          <div className="font-medium">{formatDate(batch.manufactureDate)}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-2 text-orange-500" />
+                        <div>
+                          <div className="text-gray-600">Ngày hết hạn</div>
+                          <div className={`font-medium ${expiryStatus.color}`}>{formatDate(batch.expiryDate)}</div>
+                        </div>
+                      </div>
+                      {batch.arrivalDate ? (
+                        <div className="flex items-center">
+                          <Package className="w-4 h-4 mr-2 text-green-500" />
+                          <div>
+                            <div className="text-gray-600">Ngày nhập kho</div>
+                            <div className="font-medium">{formatDate(batch.arrivalDate)}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function ProductCardGrid({
+  products,
+  onEdit,
+  onDelete,
+  onViewBatches,
+}: {
+  products: Product[];
+  onEdit: (p: Product) => void;
+  onDelete: (p: Product) => void;
+  onViewBatches: (p: Product) => void;
+}) {
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(price);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {products.map((product) => {
-        const nearestExpiry = product.batches && product.batches.length > 0 
-          ? product.batches.reduce((nearest, batch) => 
-              new Date(batch.expiryDate) < new Date(nearest.expiryDate) ? batch : nearest
-            )
-          : null;
+      {products.map((product) => (
+        <div key={product.id} className="bg-surface rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col">
+          <div className="h-40 bg-gray-100 flex items-center justify-center">
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-gray-400">No Image</span>
+            )}
+          </div>
+          <div className="flex-1 p-4 flex flex-col">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-1">{product.name}</h3>
+            <p className="text-gray-600 text-sm mb-2 line-clamp-2">{product.description || "Không có mô tả"}</p>
 
-        return (
-          <div
-            key={product.id}
-            className="bg-surface rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col"
-          >
-            <div className="h-40 bg-gray-100 flex items-center justify-center">
-              {product.imageUrl ? (
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="text-gray-400">No Image</span>
-              )}
-            </div>
-            <div className="flex-1 p-4 flex flex-col">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-1">
-                {product.name}
-              </h3>
-              <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                {product.description || "Không có mô tả"}
-              </p>
-              
-              {/* Batch information */}
-              {nearestExpiry && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center text-xs text-gray-500">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    <span>SX: {formatDate(nearestExpiry.manufactureDate)}</span>
-                  </div>
-                  <div className="flex items-center text-xs">
-                    <AlertTriangle className="w-3 h-3 mr-1" />
-                    <span className={getExpiryStatus(nearestExpiry.expiryDate).color}>
-                      HSD: {formatDate(nearestExpiry.expiryDate)} 
-                      ({getExpiryStatus(nearestExpiry.expiryDate).text})
-                    </span>
-                  </div>
-                </div>
-              )}
+        
 
-              <div className="mt-auto pt-2">
-                <p className="text-primary font-bold mb-2">
-                  {formatPrice(product.unitPrice)}
+            <div className="mt-auto pt-2">
+              <p className="text-primary font-bold mb-2">{formatPrice(product.unitPrice)}</p>
+              {product.stockQuantity !== undefined && (
+                <p className={`text-sm font-medium ${product.stockQuantity > 0 ? "text-green-600" : "text-red-500"}`}>
+                  {product.stockQuantity > 0 ? `Còn ${product.stockQuantity} sp` : "Hết hàng"}
                 </p>
-                {product.stockQuantity !== undefined && (
-                  <p
-                    className={`text-sm font-medium ${
-                      product.stockQuantity > 0 ? "text-green-600" : "text-red-500"
-                    }`}
-                  >
-                    {product.stockQuantity > 0
-                      ? `Còn ${product.stockQuantity} sp`
-                      : "Hết hàng"}
-                  </p>
-                )}
-              </div>
+              )}
             </div>
-            <div className="p-4 border-t flex justify-end gap-2">
+          </div>
+          <div className="p-4 border-t flex justify-between gap-2">
+            <Button size="sm" variant="outline" onClick={() => onViewBatches(product)}>
+              <Eye className="w-4 h-4 mr-1" />
+              Xem batch
+            </Button>
+            <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => onEdit(product)}>
-                <Pencil className="w-4 h-4 mr-1" />
-                Sửa
+                <Pencil className="w-4 h-4" />
               </Button>
               <Button size="sm" variant="danger" onClick={() => onDelete(product)}>
-                <Trash2 className="w-4 h-4 mr-1" />
-                Xóa
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -162,6 +257,12 @@ export default function Products() {
   const [itemsPerPage] = useState(10);
 
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+
+  // Batch modal states
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProductBatches, setSelectedProductBatches] = useState<BatchInfo[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -188,6 +289,7 @@ export default function Products() {
 
   useEffect(() => {
     loadProducts(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handlePageChange = (page: number) => {
@@ -209,123 +311,33 @@ export default function Products() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-
-const loadProductBatches = async (
-  productIds: string[]
-): Promise<{
-  batchesByProduct: Record<string, BatchInfo[]>;
-  selectedByProduct: Record<string, BatchInfo | null>;
-}> => {
-  try {
-    if (productIds.length === 0) {
-      return { batchesByProduct: {}, selectedByProduct: {} };
-    }
-
-    console.log('🔍 Loading batches for products:', productIds);
-    const batches = await batchApi.getByProducts(productIds);
-    console.log('📦 Raw batch data from API:', batches);
-
-    const batchesByProduct: Record<string, BatchInfo[]> = {};
-    const selectedByProduct: Record<string, BatchInfo | null> = {};
-
-    // Helper function to format dates từ backend
-    const formatDate = (dateValue: any): string => {
-      if (!dateValue) return '';
-      
-      // Nếu là string, return trực tiếp
-      if (typeof dateValue === 'string') return dateValue;
-      
-      // Nếu là LocalDateTime object từ Java
-      if (typeof dateValue === 'object' && dateValue.year) {
-        const { year, month, day, hour = 0, minute = 0, second = 0 } = dateValue;
-        const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second || 0).padStart(2, '0')}`;
-        console.log('📅 Converted LocalDateTime:', dateValue, '→', formattedDate);
-        return formattedDate;
+  const loadProductBatchCounts = async (productIds: string[]): Promise<Record<string, number>> => {
+    try {
+      if (productIds.length === 0) {
+        return {};
       }
-      
-      return String(dateValue);
-    };
 
-    batches.forEach((batch) => {
-      // Đảm bảo productId luôn là string để match với product.id
-      const batchProductId = String(batch.productId);
-      
-      console.log(`📋 Processing batch ${batch.batchCode} for product ${batchProductId}:`, {
-        originalProductId: batch.productId,
-        convertedProductId: batchProductId,
-        rawManufactureDate: batch.manufactureDate,
-        rawExpiryDate: batch.expiryDate
+      console.log("Loading batch counts for products:", productIds);
+      const batches = await batchApi.getByProducts(productIds);
+      console.log("Batch data received:", batches);
+
+      const batchCounts: Record<string, number> = {};
+
+      batches.forEach((batch: any) => {
+        const batchProductId = String(batch.productId);
+        if (!batchCounts[batchProductId]) {
+          batchCounts[batchProductId] = 0;
+        }
+        batchCounts[batchProductId]++;
       });
-      
-      if (!batchesByProduct[batchProductId]) {
-        batchesByProduct[batchProductId] = [];
-      }
 
-      const processedBatch: BatchInfo = {
-        id: batch.id,
-        batchCode: batch.batchCode,
-        manufactureDate: formatDate(batch.manufactureDate),
-        expiryDate: formatDate(batch.expiryDate),
-        originalQty: batch.originalQty || 0,
-      };
-
-      console.log(`✅ Processed batch:`, processedBatch);
-      batchesByProduct[batchProductId].push(processedBatch);
-    });
-
-    console.log('📊 Final batches grouped by product:', batchesByProduct);
-
-    // Select best batch for each product
-    Object.keys(batchesByProduct).forEach((productId) => {
-      const selected = selectBatchForDisplay(batchesByProduct[productId]);
-      selectedByProduct[productId] = selected;
-      console.log(`🎯 Selected batch for product ${productId}:`, selected ? selected.batchCode : 'none');
-    });
-
-    console.log('✅ Final selected batches by product:', selectedByProduct);
-    return { batchesByProduct, selectedByProduct };
-    
-  } catch (err) {
-    console.error("❌ Error loading batches:", err);
-    return { batchesByProduct: {}, selectedByProduct: {} };
-  }
-};
-
-
-const selectBatchForDisplay = (batches: BatchInfo[] | undefined): BatchInfo | null => {
-  if (!batches || batches.length === 0) {
-    console.log('🚫 No batches to select from');
-    return null;
-  }
-
-  console.log('🔄 Selecting best batch from:', batches.length, 'batches');
-
-  // Đơn giản hóa: Chọn batch với expiry date sớm nhất (FIFO)
-  const validBatches = batches.filter(batch => {
-    const expiryDate = new Date(batch.expiryDate);
-    const isValidDate = !isNaN(expiryDate.getTime());
-    
-    console.log(`📅 Batch ${batch.batchCode}: expiry=${batch.expiryDate}, valid=${isValidDate}`);
-    return isValidDate;
-  });
-
-  if (validBatches.length === 0) {
-    // Nếu không có batch nào có ngày hợp lệ, lấy batch đầu tiên
-    console.log('⚠️ No batches with valid expiry dates, selecting first batch');
-    return batches[0];
-  }
-
-  // Sắp xếp theo expiry date và lấy cái sớm nhất
-  const sortedBatches = validBatches.sort((a, b) => {
-    return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
-  });
-
-  const selected = sortedBatches[0];
-  console.log(`✅ Selected batch: ${selected.batchCode} (expires: ${selected.expiryDate})`);
-  
-  return selected;
-};
-
+      console.log("Final batch counts:", batchCounts);
+      return batchCounts;
+    } catch (err) {
+      console.error("Error loading batch counts:", err);
+      return {};
+    }
+  };
 
   const loadProducts = async (page: number = currentPage) => {
     try {
@@ -353,18 +365,17 @@ const selectBatchForDisplay = (batches: BatchInfo[] | undefined): BatchInfo | nu
         category: p.category ?? null,
         supplier: p.supplier ?? null,
       }));
-      const productIds = productsData.map((p: Product) => p.id);
-      const { batchesByProduct, selectedByProduct } = await loadProductBatches(productIds);
 
-      const productsWithBatches = productsData.map((product: Product) => ({
+      // Load batch counts for all products
+      const productIds = productsData.map((p: Product) => p.id);
+      const batchCounts = await loadProductBatchCounts(productIds);
+
+      const productsWithBatchCounts = productsData.map((product: Product) => ({
         ...product,
-        batches: batchesByProduct[product.id] || [],
-        selectedBatch: selectedByProduct[product.id] || null,
+        batchCount: batchCounts[product.id] || 0,
       }));
 
-      setProducts(productsWithBatches);
-
-
+      setProducts(productsWithBatchCounts);
       setTotalElements(response?.totalElements ?? 0);
     } catch (err: any) {
       setError("Không thể tải danh sách sản phẩm");
@@ -374,7 +385,51 @@ const selectBatchForDisplay = (batches: BatchInfo[] | undefined): BatchInfo | nu
     }
   };
 
-  
+  const handleViewBatches = async (product: Product) => {
+    setSelectedProduct(product);
+    setLoadingBatches(true);
+    setIsBatchModalOpen(true);
+
+    try {
+      console.log("Loading batches for product:", product.id);
+      const batches = await batchApi.getByProduct(product.id);
+      console.log("Batches loaded:", batches);
+
+      // Format dates from backend
+      const formatDate = (dateValue: any): string => {
+        if (!dateValue) return "";
+
+        if (typeof dateValue === "string") return dateValue;
+
+        if (typeof dateValue === "object" && dateValue.year) {
+          const { year, month, day, hour = 0, minute = 0, second = 0 } = dateValue;
+          return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second || 0).padStart(2, "0")}`;
+        }
+
+        return String(dateValue);
+      };
+
+      const formattedBatches: BatchInfo[] = (batches || []).map((batch: any) => ({
+        id: String(batch.id),
+        batchCode: batch.batchCode,
+        manufactureDate: formatDate(batch.manufactureDate),
+        expiryDate: formatDate(batch.expiryDate),
+        originalQty: batch.originalQty || 0,
+        importedPrice: batch.importedPrice,
+        arrivalDate: batch.arrivalDate ? formatDate(batch.arrivalDate) : undefined,
+      }));
+
+      setSelectedProductBatches(formattedBatches);
+    } catch (err) {
+      console.error("Error loading batches:", err);
+      setToastMessage("Không thể tải danh sách batch");
+      setToastType("error");
+      setShowToast(true);
+      setSelectedProductBatches([]);
+    } finally {
+      setLoadingBatches(false);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -518,266 +573,303 @@ const selectBatchForDisplay = (batches: BatchInfo[] | undefined): BatchInfo | nu
       currency: "VND",
     }).format(price);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("vi-VN");
-  };
+const totalUnitPriceSum = products.reduce((s, p) => s + Number(p.unitPrice || 0), 0);
 
-  const getDaysUntilExpiry = (expiryDate: string) => {
-    const today = new Date();
-    const expiry = new Date(expiryDate);
-    const diffTime = expiry.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
+return (
+  <Layout>
+    <div className="space-y-6">
 
-const renderExpiryInfo = (product: Product) => {
-  console.log('🎨 Rendering expiry for product:', product.id, product.selectedBatch);
-  
-  const b = product.selectedBatch;
-  if (!b) {
-    console.log('❌ No selected batch for product:', product.id);
-    return <span className="text-gray-400">-</span>;
-  }
-
-  const expiry = new Date(b.expiryDate);
-  if (isNaN(expiry.getTime())) {
-    console.log('❌ Invalid expiry date for batch:', b.expiryDate);
-    return <span className="text-gray-400">Ngày không hợp lệ</span>;
-  }
-
-  const daysLeft = getDaysUntilExpiry(b.expiryDate);
-  console.log('📊 Days until expiry:', daysLeft);
-  
-  const statusColor =
-    daysLeft < 0 ? "text-red-600" :
-    daysLeft <= 7 ? "text-orange-500" : "text-green-600";
-  const bgColor =
-    daysLeft < 0 ? "bg-red-100" :
-    daysLeft <= 7 ? "bg-orange-100" : "bg-green-100";
-
-  return (
-    <div className="space-y-1">
-      <div className="text-sm text-gray-700">{formatDate(b.expiryDate)}</div>
-      <div className={`text-xs px-2 py-1 rounded-full ${bgColor} ${statusColor} inline-block`}>
-        {daysLeft < 0 ? "Đã hết hạn" : `Còn ${daysLeft} ngày`}
-      </div>
-    </div>
-  );
-};
-
-const renderManufactureInfo = (product: Product) => {
-  console.log('🏭 Rendering manufacture for product:', product.id, product.selectedBatch);
-  
-  const b = product.selectedBatch;
-  if (!b) {
-    console.log('❌ No selected batch for product:', product.id);
-    return <span className="text-gray-400">-</span>;
-  }
-
-  const manu = new Date(b.manufactureDate);
-  if (isNaN(manu.getTime())) {
-    console.log('❌ Invalid manufacture date for batch:', b.manufactureDate);
-    return <span className="text-gray-400">Ngày không hợp lệ</span>;
-  }
-
-  return (
-    <div className="text-sm text-gray-700">
-      {formatDate(b.manufactureDate)}
-    </div>
-  );
-};
-
-
-  
-  return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quản lý Sản phẩm</h1>
-            <p className="text-gray-600">Thêm, sửa, xóa và quản lý sản phẩm</p>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex-1">
+            <h1 className="text-2xl font-semibold text-gray-800">Quản lý Sản phẩm</h1>
+            <p className="text-sm text-gray-500 mt-1">Thêm, sửa, xóa và quản lý sản phẩm</p>
+          </div>
+        </div>
+        
+      {/* TOP search bar + actions (mimic screenshot) */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            {/* search bar full width */}
+            <AutocompleteSearchBar
+              searchFields={productSearchFields}
+              onSearch={handleAutocompleteSearch}
+              placeholder="Tìm kiếm theo tên khách hàng, mã đơn, sản phẩm..."
+            />
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === "table" ? "primary" : "outline"}
-                onClick={() => setViewMode("table")}
-                size="sm"
-              >
-                <ListIcon className="w-4 h-4 mr-2" />
-                Bảng
-              </Button>
-              <Button
-                variant={viewMode === "grid" ? "primary" : "outline"}
-                onClick={() => setViewMode("grid")}
-                size="sm"
-              >
-                <GridIcon className="w-4 h-4 mr-2" />
-                Card
-              </Button>
-            </div>
-
-            <Button onClick={() => setIsAddModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Thêm mới sản phẩm
+            <Button onClick={() => setIsAddModalOpen(true)} className="ml-1">
+              <Plus className="w-4 h-4 mr-1.5" />
+              Tạo đơn hàng
             </Button>
           </div>
         </div>
-
-        {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">{error}</div>}
-
-        <AutocompleteSearchBar
-          searchFields={productSearchFields}
-          onSearch={handleAutocompleteSearch}
-          placeholder="Tìm kiếm sản phẩm..."
-        />
-
-        {viewMode === "table" ? (
-          <DataTable
-            data={products}
-            columns={[
-              {
-                key: "sku",
-                label: "Mã SKU",
-                render: (value) => <span className="font-medium text-gray-900">{value}</span>,
-              },
-              {
-                key: "name",
-                label: "Tên sản phẩm",
-                render: (value) => <span className="text-gray-900">{value}</span>,
-              },
-              {
-                key: "description",
-                label: "Mô tả",
-                render: (value) => <span className="text-gray-600">{value}</span>,
-              },
-              {
-                key: "unitPrice",
-                label: "Giá bán",
-                render: (value) => <span className="text-gray-900">{formatPrice(Number(value))}</span>,
-              },
-              {
-                key: "supplier.name",
-                label: "Nhà cung cấp",
-                render: (value, item) => <span className="text-gray-700">{item.supplier?.name ?? "-"}</span>,
-              },
-              {
-                key: "selectedBatch.manufactureDate",
-                label: "Ngày sản xuất",
-                render: (value, item) => renderManufactureInfo(item),
-              },
-              {
-                key: "selectedBatch.expiryDate",
-                label: "Ngày hết hạn",
-                render: (value, item) => renderExpiryInfo(item),
-              },
-
-            ]}
-            actions={[
-              {
-                label: "Sửa",
-                variant: "outline",
-                onClick: handleEdit,
-              },
-              {
-                label: "Xóa",
-                variant: "danger",
-                onClick: (product) => handleDelete(product.id),
-              },
-            ]}
-            loading={loading}
-            emptyMessage="Chưa có sản phẩm nào"
-          />
-        ) : (
-          <ProductCardGrid
-            products={products}
-            onEdit={handleEdit}
-            onDelete={(p) => handleDelete(p)}
-          />
-        )}
-
-        {!loading && products.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={Math.max(1, Math.ceil(totalElements / itemsPerPage))}
-            totalItems={totalElements}
-            itemsPerPage={itemsPerPage}
-            onPageChange={handlePageChange}
-            loading={loading}
-          />
-        )}
-
-        {/* Add Modal */}
-        <Modal
-          isOpen={isAddModalOpen}
-          onClose={() => {
-            setIsAddModalOpen(false);
-            resetForm();
-          }}
-          title="Thêm sản phẩm mới"
-          footer={
-            <>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  resetForm();
-                }}
-                disabled={isSubmitting}
-              >
-                Hủy
-              </Button>
-              <Button onClick={handleAdd} disabled={isSubmitting}>
-                {isSubmitting ? "Đang thêm..." : "Thêm"}
-              </Button>
-            </>
-          }
-        >
-          <ProductForm formData={formData} onChange={handleFormChange} />
-        </Modal>
-
-        {/* Edit Modal */}
-        <Modal
-          isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setEditingProduct(null);
-            resetForm();
-          }}
-          title="Chỉnh sửa sản phẩm"
-          footer={
-            <>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingProduct(null);
-                  resetForm();
-                }}
-                disabled={isSubmitting}
-              >
-                Hủy
-              </Button>
-              <Button onClick={handleUpdate} disabled={isSubmitting}>
-                {isSubmitting ? "Đang cập nhật..." : "Cập nhật"}
-              </Button>
-            </>
-          }
-        >
-          <ProductForm formData={formData} onChange={handleFormChange} readonlyFields={["sku"]} />
-        </Modal>
       </div>
 
+      {/* Summary cards */}
+      <div className="w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
+            <div className="text-sm text-gray-500">Tổng sản phẩm</div>
+            <div className="mt-2 text-2xl font-bold text-gray-900">{totalElements ?? products.length}</div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
+            <div className="text-sm text-gray-500">Đang hiển thị</div>
+            <div className="mt-2 text-2xl font-bold text-blue-600">{products.length}</div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
+            <div className="text-sm text-gray-500">Trang hiện tại</div>
+            <div className="mt-2 text-2xl font-bold text-gray-900">
+              {currentPage}/{Math.max(1, Math.ceil((totalElements ?? 0) / itemsPerPage))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
+            <div className="text-sm text-gray-500">Tổng giá trị kho</div>
+            <div className="mt-2 text-2xl font-bold text-green-600">
+              {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(totalUnitPriceSum)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Table or Grid */}
+      {viewMode === "table" ? (
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          {/* Table header */}
+          <div className="px-6 py-4 border-b">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">Danh sách sản phẩm</div>
+              <div className="text-sm text-gray-500">Tìm thấy {totalElements ?? products.length} kết quả</div>
+            </div>
+          </div>
+
+          {/* Table body */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-100">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">MÃ SKU</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">TÊN SẢN PHẨM</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">NHÀ CUNG CẤP</th>
+                  {/* <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">BATCH</th> */}
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">GIÁ BÁN</th>
+                  {/* <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">TỒN</th> */}
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">THAO TÁC</th>
+                </tr>
+              </thead>
+
+              <tbody className="bg-white divide-y divide-gray-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      <Spinner className="w-8 h-8 text-gray-400 mx-auto" />
+                      <div className="mt-2">Đang tải sản phẩm...</div>
+                    </td>
+                  </tr>
+                ) : products.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      Chưa có sản phẩm nào
+                    </td>
+                  </tr>
+                ) : (
+                  products.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 align-top w-48">
+                        <div className="font-medium text-gray-900 truncate">{p.sku}</div>
+                        <div className="text-xs text-gray-400 mt-1">ID: {p.id}</div>
+                      </td>
+
+                      <td className="px-6 py-4 align-top">
+                        <div className="font-medium text-gray-900">{p.name}</div>
+                        <div className="text-sm text-gray-500 line-clamp-2">{p.description || "-"}</div>
+                      </td>
+
+                      <td className="px-6 py-4 align-top">
+                        <div className="text-sm text-gray-700">{p.supplier?.name ?? "-"}</div>
+                      </td>
+{/* 
+                      <td className="px-6 py-4 text-center align-top">
+                        <button
+                          onClick={() => handleViewBatches(p)}
+                          className="text-sm font-medium text-blue-600 hover:underline"
+                        >
+                          {p.batchCount ?? 0} batch
+                        </button>
+                      </td> */}
+
+                      <td className="px-6 py-4 text-right align-top">
+                        <div className="text-lg font-bold text-green-600">{formatPrice(Number(p.unitPrice || 0))}</div>
+                      </td>
+
+                      {/* <td className="px-6 py-4 text-center align-top">
+                        {p.stockQuantity !== undefined ? (
+                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                            p.stockQuantity > 0 ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
+                          }`}>
+                            {p.stockQuantity > 0 ? `Còn ${p.stockQuantity}` : "Hết hàng"}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td> */}
+
+                      <td className="px-6 py-4 text-center align-top">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleViewBatches(p)}
+                            title="Xem batch"
+                            className="p-2 rounded-md hover:bg-gray-100"
+                          >
+                            <Eye className="w-5 h-5 text-blue-600" />
+                          </button>
+
+                          <button
+                            onClick={() => handleEdit(p)}
+                            title="Sửa"
+                            className="p-2 rounded-md hover:bg-gray-100"
+                          >
+                            <Pencil className="w-5 h-5 text-orange-500" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(p)}
+                            title="Xóa"
+                            className="p-2 rounded-md hover:bg-gray-100"
+                          >
+                            <Trash2 className="w-5 h-5 text-red-500" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer / Pagination */}
+          <div className="px-6 py-4 border-t flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              Hiển thị {products.length} / {totalElements ?? products.length} sản phẩm
+            </div>
+            <div>
+              {!loading && products.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.max(1, Math.ceil((totalElements ?? 0) / itemsPerPage))}
+                  totalItems={totalElements ?? products.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handlePageChange}
+                  loading={loading}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Grid view (keeps your existing card grid) */
+        <ProductCardGrid
+          products={products}
+          onEdit={handleEdit}
+          onDelete={(p) => handleDelete(p)}
+          onViewBatches={handleViewBatches}
+        />
+      )}
+
+      {/* Batch Modal */}
+      <BatchModal
+        isOpen={isBatchModalOpen}
+        onClose={() => {
+          setIsBatchModalOpen(false);
+          setSelectedProduct(null);
+          setSelectedProductBatches([]);
+        }}
+        product={selectedProduct}
+        batches={selectedProductBatches}
+        loading={loadingBatches}
+      />
+
+      {/* Add / Edit Modals kept unchanged below */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          resetForm();
+        }}
+        title="Thêm sản phẩm mới"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddModalOpen(false);
+                resetForm();
+              }}
+              disabled={isSubmitting}
+            >
+              Hủy
+            </Button>
+            <Button onClick={handleAdd} disabled={isSubmitting}>
+              {isSubmitting ? "Đang thêm..." : "Thêm"}
+            </Button>
+          </>
+        }
+      >
+        <ProductForm formData={formData} onChange={handleFormChange} />
+      </Modal>
+
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingProduct(null);
+          resetForm();
+        }}
+        title="Chỉnh sửa sản phẩm"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingProduct(null);
+                resetForm();
+              }}
+              disabled={isSubmitting}
+            >
+              Hủy
+            </Button>
+            <Button onClick={handleUpdate} disabled={isSubmitting}>
+              {isSubmitting ? "Đang cập nhật..." : "Cập nhật"}
+            </Button>
+          </>
+        }
+      >
+        <ProductForm formData={formData} onChange={handleFormChange} readonlyFields={["sku"]} />
+      </Modal>
+
+      {/* Toast */}
       {showToast && (
         <Toast
-          className={"mt-6"}
           message={toastMessage}
           type={toastType}
-          duration={3000}
           onClose={() => setShowToast(false)}
         />
       )}
-    </Layout>
-  );
+    </div>
+  </Layout>
+);
 }

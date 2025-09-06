@@ -22,6 +22,14 @@ export default tseslint.config([
     rules: {
       'react-refresh/only-export-components': 'off',
       'no-empty-pattern': 'off'
+    },
+    theme: {
+      extend: {
+        fontSize: {
+          heading: ['1.5rem', { lineHeight: '2rem', fontWeight: '700' }], 
+          body: ['1rem', { lineHeight: '1.5rem' }],
+        },
+      },
     }
   },
 ])

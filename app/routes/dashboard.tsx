@@ -198,26 +198,34 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Orders */}
-          <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
-            <h2 className="text-lg font-semibold mb-4">Đơn hàng gần đây</h2>
-            <div className="space-y-3">
-              {recentOrders.length > 0 ? (
-                recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{order.customerName || `Khách #${order.customerId}`}</p>
-                      <p className="text-sm text-gray-600">Mã đơn: {order.id}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">{formatPrice(order.finalPrice)}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center p-4 text-gray-600">Không có đơn hàng gần đây</div>
-              )}
-            </div>
+{/* Recent Orders (simple) */}
+<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+  <h2 className="text-lg font-semibold mb-4">Đơn hàng gần đây</h2>
+
+  <div className="space-y-3">
+    {recentOrders.length > 0 ? (
+      recentOrders.map((order) => (
+        <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div>
+            <p className="font-medium text-gray-900">
+              {order.customerName || `Khách #${order.customerId}`}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Mã đơn: <span className="text-xs text-gray-400 break-words">{order.id}</span>
+            </p>
           </div>
+
+          <div className="text-right">
+            <p className="font-semibold text-gray-900">{formatPrice(order.finalPrice)}</p>
+          </div>
+        </div>
+      ))
+    ) : (
+      <div className="text-center p-4 text-gray-600">Chưa có đơn hàng gần đây</div>
+    )}
+  </div>
+</div>
+
 
           {/* Top Products */}
           <div className="bg-surface p-6 rounded-lg shadow-md border border-gray-200">
