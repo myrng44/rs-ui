@@ -661,6 +661,7 @@ return (
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">MÃ SKU</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500"> ID SẢN PHẨM</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">TÊN SẢN PHẨM</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">NHÀ CUNG CẤP</th>
                   {/* <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">BATCH</th> */}
@@ -689,7 +690,11 @@ return (
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 align-top w-48">
                         <div className="font-medium text-gray-900 truncate">{p.sku}</div>
-                        <div className="text-xs text-gray-400 mt-1">ID: {p.id}</div>
+                        {/* <div className="text-xs text-gray-400 mt-1">ID: {p.id}</div> */}
+                      </td>
+
+                      <td className="px-6 py-4 align-top w-48">
+                        <div className="font-medium text-gray-900 truncate">{p.id}</div>
                       </td>
 
                       <td className="px-6 py-4 align-top">
@@ -761,10 +766,10 @@ return (
           </div>
 
           {/* Footer / Pagination */}
-          <div className="px-6 py-4 border-t flex items-center justify-between">
-            <div className="text-sm text-gray-500">
+          {/* <div className="px-6 py-4 border-t flex items-center justify-between"> */}
+            {/* <div className="text-sm text-gray-500">
               Hiển thị {products.length} / {totalElements ?? products.length} sản phẩm
-            </div>
+            </div> */}
             <div>
               {!loading && products.length > 0 && (
                 <Pagination
@@ -777,7 +782,7 @@ return (
                 />
               )}
             </div>
-          </div>
+          {/* </div> */}
         </div>
       ) : (
         /* Grid view (keeps your existing card grid) */

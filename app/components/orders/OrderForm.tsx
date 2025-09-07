@@ -1,22 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus, Search, ShoppingCart } from 'lucide-react';
+
+import React, { useEffect, useState } from 'react';
+import { X, ShoppingCart } from 'lucide-react';
 import { Button } from '../Button';
 import { Input } from '../Input';
 import Dropdown from '../Dropdown';
 import { ordersApi, productsApi, paymentMethodApi } from '~/utils/api';
-
-interface OrderFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}
+import { storesApi } from '~/utils/api';
 
 interface OrderLine {
+  id: string; // local id
   productId: string;
   productName: string;
-  unitPrice: number;
+  unitPrice?: number;
   qtyOrdered: number;
-  totalPrice: number;
 }
 
 interface FormData {
@@ -25,454 +21,215 @@ interface FormData {
   voucherId: string;
   note: string;
   paymentId: string;
-  lines: OrderLine[];
 }
 
-interface PaymentMethod {
-  id: string;
-  code: string;
-  name: string;
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
-interface Product {
-  description: string;
-  displayText: string;
-  id: string;
-  sku: string;
-  name: string;
-  unitPrice: number;
-  categoryId: string;
-}
+const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState<FormData>({ customerId: '', storeId: '', voucherId: '', note: '', paymentId: '' });
+  const [lines, setLines] = useState<OrderLine[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<Array<{ value: string; label: string; unitPrice?: number }>>([]);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
+  const [stores, setStores] = useState<Array<{ value: string; label: string }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState<string | null>(null);
 
-const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [formData, setFormData] = useState<FormData>({
-    customerId: '',
-    storeId: '',
-    voucherId: '',
-    note: '',
-    paymentId: '',
-    lines: []
-  });
-
-const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-const [searchResults, setSearchResults] = useState<Product[]>([]);
-const [isSearching, setIsSearching] = useState(false);
-const [productSearch, setProductSearch] = useState('');
-const [loading, setLoading] = useState(false);
-const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Load payment methods
   useEffect(() => {
-    if (isOpen) {
-      loadPaymentMethods();
-    }
+    if (!isOpen) return;
+    loadProducts();
+    loadPaymentMethods();
+    loadStores();
+    setErrors({}); setServerError(null);
   }, [isOpen]);
+
+  const loadProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const res = await productsApi.getAll({ limit: 200 });
+      setAvailableProducts((res.elements || []).map((p: any) => ({ value: String(p.id), label: `${p.name} (${p.sku || ''})`, unitPrice: Number(p.unitPrice || 0) })));
+    } catch (err) {
+      console.error('Load products error', err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
 
   const loadPaymentMethods = async () => {
     try {
-      const response = await paymentMethodApi.getAll();
-      setPaymentMethods(response.elements);
-    } catch (error) {
-      console.error('Error loading payment methods:', error);
+      const res = await paymentMethodApi.getAll();
+      setPaymentMethods((res.elements || []).map((m: any) => ({ value: String(m.id), label: m.name })));
+    } catch (err) {
+      console.error('Load payment methods', err);
     }
   };
 
-  const searchProducts = async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
+  const loadStores = async () => {
     try {
-      const results = await productsApi.search(query, 10);
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Error searching products:', error);
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
+      const res = await storesApi.getAll({ offset: 0, limit: 200 });
+      setStores((res.elements || []).map((s: any) => ({ value: String(s.id), label: s.name })));
+    } catch (err) {
+      console.error('Load stores error', err);
+      setServerError('Không thể tải danh sách cửa hàng. Kiểm tra cấu hình API.');
     }
   };
 
-  const handleProductSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setProductSearch(value);
-    searchProducts(value);
+  const addLine = () => {
+    const tmpId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+    setLines(prev => [...prev, { id: tmpId, productId: '', productName: '', unitPrice: 0, qtyOrdered: 1 }]);
   };
 
-const addProduct = (product: any) => {
-  // Đảm bảo productId là string
-  const productId = product.id.toString();
-  const existingLine = formData.lines.find(line => line.productId === productId);
-  
-  if (existingLine) {
-    updateLineQuantity(productId, existingLine.qtyOrdered + 1);
-  } else {
-    const newLine: OrderLine = {
-      productId: productId,
-      productName: product.name,
-      unitPrice: product.unitPrice,
-      qtyOrdered: 1,
-      totalPrice: product.unitPrice
-    };
-
-    setFormData(prev => ({
-      ...prev,
-      lines: [...prev.lines, newLine]
-    }));
-  }
-
-  setProductSearch('');
-  setSearchResults([]);
-};
-
-  const updateLineQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeLine(productId);
-      return;
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      lines: prev.lines.map(line => 
-        line.productId === productId 
-          ? { ...line, qtyOrdered: quantity, totalPrice: line.unitPrice * quantity }
-          : line
-      )
+  const updateLine = (id: string, field: keyof OrderLine, value: any) => {
+    setLines(prev => prev.map(l => {
+      if (l.id !== id) return l;
+      const next = { ...l, [field]: value };
+      if (field === 'productId') {
+        const sel = availableProducts.find(p => p.value === value);
+        next.productName = sel ? sel.label.split(' (')[0] : '';
+        next.unitPrice = sel?.unitPrice ?? 0;
+      }
+      if (field === 'qtyOrdered') next.qtyOrdered = Number(value) || 0;
+      return next;
     }));
   };
 
-  const removeLine = (productId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      lines: prev.lines.filter(line => line.productId !== productId)
-    }));
+  const removeLine = (id: string) => setLines(prev => prev.filter(l => l.id !== id));
+
+  const calculateLinesTotal = () => lines.reduce((s, l) => s + ((Number(l.unitPrice || 0)) * Number(l.qtyOrdered || 0)), 0);
+
+  const validate = () => {
+    const e: Record<string,string> = {};
+    if (!formData.storeId) e.storeId = 'Vui lòng chọn cửa hàng';
+    if (!formData.paymentId) e.paymentId = 'Vui lòng chọn phương thức thanh toán';
+    if (lines.length === 0) e.lines = 'Vui lòng thêm ít nhất 1 sản phẩm';
+    for (const [i, l] of lines.entries()) {
+      if (!l.productId) { e.lines = `Sản phẩm #${i+1} chưa chọn`; break; }
+      if (!l.qtyOrdered || l.qtyOrdered < 1) { e.lines = `Sản phẩm #${i+1} số lượng không hợp lệ`; break; }
+    }
+
+    // existence checks
+    if (formData.storeId && !stores.find(s => s.value === formData.storeId)) e.storeId = 'Cửa hàng không hợp lệ';
+    if (formData.paymentId && !paymentMethods.find(pm => pm.value === formData.paymentId)) e.paymentId = 'Phương thức thanh toán không hợp lệ';
+    for (const l of lines) if (l.productId && !availableProducts.find(p => p.value === l.productId)) { e.lines = `Sản phẩm không hợp lệ: ${l.productName || l.productId}`; break; }
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const calculateTotal = () => {
-    return formData.lines.reduce((sum, line) => sum + line.totalPrice, 0);
+  const buildPayload = () => {
+    const payload: any = {};
+    if (formData.customerId?.trim()) payload.customerId = String(formData.customerId.trim());
+    payload.storeId = String(formData.storeId);
+    if (formData.note?.trim()) payload.note = formData.note.trim();
+    if (formData.voucherId?.trim()) payload.voucherId = String(formData.voucherId.trim());
+    payload.paymentId = String(formData.paymentId);
+    payload.lines = lines.map(l => ({ productId: String(l.productId), qtyOrdered: Math.round(Number(l.qtyOrdered || 0)), unitPrice: Math.round(Number(l.unitPrice || 0)) }));
+    return payload;
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.customerId.trim()) {
-      newErrors.customerId = 'Vui lòng nhập mã khách hàng';
-    }
-
-    if (!formData.storeId.trim()) {
-      newErrors.storeId = 'Vui lòng chọn cửa hàng';
-    }
-
-    if (!formData.paymentId.trim()) {
-      newErrors.paymentId = 'Vui lòng chọn phương thức thanh toán';
-    }
-
-    if (formData.lines.length === 0) {
-      newErrors.lines = 'Vui lòng thêm ít nhất một sản phẩm';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setServerError(null);
+    if (!validate()) return;
+    const payload = buildPayload();
+    console.log('Creating order payload:', JSON.stringify(payload, null, 2));
 
     setLoading(true);
     try {
-await ordersApi.create({
-  customerId: formData.customerId,
-  storeId: parseInt(formData.storeId), // Backend expect Long
-  voucherId: formData.voucherId ? parseInt(formData.voucherId) : null,
-  note: formData.note,
-  paymentId: parseInt(formData.paymentId),
-  lines: formData.lines.map(line => ({
-    productId: parseInt(line.productId),
-    qtyOrdered: line.qtyOrdered,
-    unitPrice: line.unitPrice
-  }))
-});
-
-      onSuccess();
-      onClose();
-      resetForm();
-    } catch (error) {
-      console.error('Error creating order:', error);
-      alert('Có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      customerId: '',
-      storeId: '',
-      voucherId: '',
-      note: '',
-      paymentId: '',
-      lines: []
-    });
-    setProductSearch('');
-    setSearchResults([]);
-    setErrors({});
+      await ordersApi.create(payload);
+      onSuccess(); onClose();
+      setFormData({ customerId: '', storeId: '', voucherId: '', note: '', paymentId: '' });
+      setLines([]); setErrors({});
+    } catch (err: any) {
+      console.error('Create order error', err);
+      setServerError(err?.body?.message || err?.message || 'Có lỗi khi tạo đơn hàng');
+      alert(`Tạo đơn lỗi: ${err?.status || ''} - ${err?.body?.message || err?.message || ''}`);
+    } finally { setLoading(false); }
   };
 
   if (!isOpen) return null;
 
-  const paymentOptions = [
-    { label: 'Chọn phương thức thanh toán', value: '' },
-    ...paymentMethods.map((pm: any) => ({ label: pm.name, value: pm.name }))
-  ];
-
-  const storeOptions = [
-    { label: 'Chọn cửa hàng', value: '' },
-    { label: 'Cửa hàng Chính', value: '1' },
-    { label: 'Chi nhánh Quận 1', value: '2' },
-    { label: 'Chi nhánh Quận 3', value: '3' }
-  ];
-
   return (
-      <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            Tạo đơn hàng mới
+            <ShoppingCart className="h-5 w-5" /> Tạo đơn hàng mới
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <Button variant="ghost" size="sm" onClick={onClose}><X className="h-4 w-4" /></Button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Customer and Store Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Mã khách hàng"
-              value={formData.customerId}
-              onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))}
-              placeholder="Nhập mã khách hàng"
-              required
-              error={errors.customerId}
-            />
+          {serverError && <div className="p-3 bg-red-50 text-red-700 rounded">{serverError}</div>}
 
-            <Dropdown
-              label="Cửa hàng"
-              value={formData.storeId}
-              onChange={(e) => setFormData(prev => ({ ...prev, storeId: e.target.value }))}
-              options={storeOptions}
-              required
-              error={errors.storeId}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Mã khách hàng" value={formData.customerId} onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))} placeholder="Nhập mã khách hàng" />
+            <Dropdown label="Cửa hàng" value={formData.storeId} onChange={(e) => setFormData(prev => ({ ...prev, storeId: e.target.value }))} options={[{ value: '', label: 'Chọn cửa hàng' }, ...stores]} required error={errors.storeId} />
           </div>
 
-          {/* Voucher and Payment */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Mã voucher (tùy chọn)"
-              value={formData.voucherId}
-              onChange={(e) => setFormData(prev => ({ ...prev, voucherId: e.target.value }))}
-              placeholder="Nhập mã voucher"
-            />
-
-            <Dropdown
-              label="Phương thức thanh toán"
-              value={formData.paymentId}
-              onChange={(e) => setFormData(prev => ({ ...prev, paymentId: e.target.value }))}
-              options={paymentOptions}
-              required
-              error={errors.paymentId}
-            />
+            <Input label="Mã voucher (tùy chọn)" value={formData.voucherId} onChange={(e) => setFormData(prev => ({ ...prev, voucherId: e.target.value }))} placeholder="Nhập mã voucher" />
+            <Dropdown label="Phương thức thanh toán" value={formData.paymentId} onChange={(e) => setFormData(prev => ({ ...prev, paymentId: e.target.value }))} options={[{ value: '', label: 'Chọn phương thức thanh toán' }, ...paymentMethods]} required error={errors.paymentId} />
           </div>
 
-          {/* Product Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Thêm sản phẩm
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm sản phẩm theo tên, mã SKU..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={productSearch}
-                onChange={handleProductSearch}
-              />
-              
-              {/* Search Results */}
-              {(searchResults.length > 0 || isSearching) && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                  {isSearching ? (
-                    <div className="px-4 py-3 text-center text-gray-500">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                      Đang tìm kiếm...
-                    </div>
-                  ) : searchResults.length > 0 ? (
-                    searchResults.map((product: any) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                        onClick={() => addProduct(product)}
-                      >
-                        <div className="font-medium text-gray-900">{product.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {product.sku} - {new Intl.NumberFormat('vi-VN', { 
-                            style: 'currency', 
-                            currency: 'VND' 
-                          }).format(product.unitPrice)}
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-3 text-center text-gray-500">
-                      Không tìm thấy sản phẩm nào
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">Sản phẩm trong đơn</label>
+              <Button type="button" onClick={addLine} className="text-sm">+ Thêm sản phẩm</Button>
             </div>
-            {errors.lines && <p className="text-xs text-red-600 mt-1">{errors.lines}</p>}
-          </div>
 
-          {/* Order Lines */}
-          {formData.lines.length > 0 && (
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-3">
-                Sản phẩm đã chọn ({formData.lines.length})
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full border border-gray-200 rounded-lg">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Sản phẩm
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                        Số lượng
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        Đơn giá
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        Thành tiền
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                        Thao tác
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {formData.lines.map((line) => (
-                      <tr key={line.productId} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <div className="text-sm font-medium text-gray-900">{line.productName}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              type="button"
-                              className="p-1 hover:bg-gray-200 rounded"
-                              onClick={() => updateLineQuantity(line.productId, line.qtyOrdered + 1)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm text-gray-900">
-                          {new Intl.NumberFormat('vi-VN', { 
-                            style: 'currency', 
-                            currency: 'VND' 
-                          }).format(line.unitPrice)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
-                          {new Intl.NumberFormat('vi-VN', { 
-                            style: 'currency', 
-                            currency: 'VND' 
-                          }).format(line.totalPrice)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1 rounded"
-                            onClick={() => removeLine(line.productId)}
-                            title="Xóa sản phẩm"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-50">
-                    <tr>
-                      <td colSpan={3} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                        Tổng cộng:
-                      </td>
-                      <td className="px-4 py-3 text-right text-lg font-bold text-blue-600">
-                        {new Intl.NumberFormat('vi-VN', { 
-                          style: 'currency', 
-                          currency: 'VND' 
-                        }).format(calculateTotal())}
-                      </td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
+            {errors.lines && <p className="text-xs text-red-600 mb-2">{errors.lines}</p>}
+
+            {lines.length === 0 ? (
+              <div className="text-sm text-gray-500 p-4 bg-gray-50 rounded">Chưa có sản phẩm</div>
+            ) : (
+              <div className="space-y-3">
+                {lines.map((line, idx) => (
+                  <div key={line.id} className="flex items-end gap-3 p-3 bg-gray-50 rounded">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700">Sản phẩm {idx + 1}</label>
+                      <Dropdown 
+                      label = ""
+                      value={line.productId} onChange={(e) => updateLine(line.id, 'productId', e.target.value)} options={[{ value: '', label: 'Chọn sản phẩm' }, ...availableProducts]} />
+                    </div>
+
+                    <div className="w-28">
+                      <label className="block text-sm font-medium text-gray-700">Số lượng</label>
+                      <input type="number" min={1} value={line.qtyOrdered} onChange={(e) => updateLine(line.id, 'qtyOrdered', Number(e.target.value) || 1)} className="w-full border rounded px-2 py-1" />
+                    </div>
+
+                    <div className="w-36">
+                      <label className="block text-sm font-medium text-gray-700">Đơn giá</label>
+                      <div className="pt-2 text-right text-sm">{line.unitPrice ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(line.unitPrice) : '-'}</div>
+                    </div>
+
+                    <div>
+                      <Button variant="danger" size="sm" onClick={() => removeLine(line.id)}>Xóa</Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          )}
-
-          {/* Note */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Ghi chú (tùy chọn)
-            </label>
-            <textarea
-              rows={3}
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nhập ghi chú cho đơn hàng..."
-              value={formData.note}
-              onChange={(e) => setFormData(prev => ({ ...prev, note: e.target.value }))}
-            />
+            )}
           </div>
 
-          {/* Submit Buttons */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú</label>
+            <textarea rows={3} className="w-full p-2 border border-gray-300 rounded-md" placeholder="Ghi chú..." value={formData.note} onChange={(e) => setFormData(prev => ({ ...prev, note: e.target.value }))} />
+          </div>
+
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-            >
-              Hủy
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || formData.lines.length === 0}
-              className="flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Đang tạo...
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="h-4 w-4" />
-                  Tạo đơn hàng
-                </>
-              )}
-            </Button>
+            <div className="text-right mr-4">
+              <div className="text-sm text-gray-500">Tạm tính</div>
+              <div className="text-xl font-semibold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(calculateLinesTotal())}</div>
+            </div>
+
+            <Button type="button" variant="outline" onClick={() => { onClose(); }} disabled={loading}>Hủy</Button>
+            <Button type="button" onClick={handleSubmit} disabled={loading || lines.length === 0}>{loading ? 'Đang tạo...' : 'Tạo đơn hàng'}</Button>
           </div>
         </form>
       </div>

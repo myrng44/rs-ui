@@ -403,25 +403,26 @@ export const ordersApi = {
     return response.data;
   },
 
-create: async (order: {
-  customerId: string;
-  storeId: number;
-  voucherId?: number | null;
-  note: string;
-  paymentId: number;
-  lines: Array<{
-    productId: number;
+  create: async (order: {
+    customerId?: string;  
+    storeId: string;
+    voucherId?: string | null;
+    note?: string;
+    paymentId: string;
+    lines: Array<{
+    productId: string;
     qtyOrdered: number;
-    unitPrice: number;
-  }>;
-}) => {
-  const response = await apiCallWithResponse<any>('/secured/rest/v1/orders', {
+    unitPrice?: number;
+    }>;
+    }) => {
+    const response = await apiCallWithResponse<any>('/secured/rest/v1/orders', {
     method: 'POST',
     body: JSON.stringify(order),
   });
 
-  return response.data;
-},
+
+    return response.data;
+  },
 
   update: async (
     id: string,
@@ -1153,4 +1154,32 @@ export const batchApi = {
     }
     return null;
   },
+};
+
+//store API
+export const storesApi = {
+getAll: async (params?: { query?: string; offset?: number; limit?: number }) => {
+const searchParams = new URLSearchParams();
+if (params?.query) searchParams.append('query', params.query);
+if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
+if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+
+
+const endpoint = `/secured/rest/v1/store${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+
+
+const response = await apiCallWithPageResponse<any>(endpoint);
+
+
+return {
+elements: (response.data.content || []).map((s: any) => ({ ...s, id: String(s.id) })),
+totalElements: response.data.totalElements,
+};
+},
+
+
+getById: async (id: string) => {
+const response = await apiCallWithResponse<any>(`/secured/rest/v1/store/${id}`);
+return { ...response.data, id: String(response.data.id) };
+}
 };
