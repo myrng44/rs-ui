@@ -44,7 +44,7 @@ export default function Orders() {
   const [formData, setFormData] = useState({
     customerId: '',
     storeId: '',
-    voucherId: '',
+    voucherCode: '',
     note: '',
     paymentId: '',
   });
@@ -88,7 +88,7 @@ export default function Orders() {
     setFormData({
       customerId: '',
       storeId: '',
-      voucherId: '',
+      voucherCode: '',
       note: '',
       paymentId: '',
     });
@@ -128,7 +128,7 @@ export default function Orders() {
       await ordersApi.create({
         customerId: formData.customerId || undefined,
         note: formData.note || undefined,
-        voucherId: formData.voucherId || undefined,
+        voucherCode: formData.voucherCode || undefined,
         paymentId: formData.paymentId,
         lines: orderProducts.map(p => ({ productId: p.productId, qtyOrdered: p.quantity })),
       });
@@ -156,7 +156,7 @@ export default function Orders() {
       setFormData({
         customerId: order.customerId || '',
         storeId: order.storeId.toString(),
-        voucherId: order.voucherCode || '',
+        voucherCode: order.voucherCode || '',
         note: order.note || '',
         paymentId: order.paymentMethodName,
       });
@@ -205,7 +205,13 @@ export default function Orders() {
       }
 
       //update order first
-      await ordersApi.update(editingOrder.id, formData);
+      await ordersApi.update(editingOrder.id, {
+        customerId: formData.customerId,
+        storeId: formData.storeId,
+        voucherId: formData.voucherCode || '',
+        note: formData.note || '',
+        paymentId: formData.paymentId,
+      });
 
       //!note:not updating order details in edit mode
       console.warn('Order details update not implemented in edit mode');
@@ -347,6 +353,7 @@ export default function Orders() {
             resetForm();
           }}
           title='Thêm đơn hàng mới'
+          size='3xl'
           footer={
             <>
               <Button
@@ -404,7 +411,7 @@ export default function Orders() {
             products={orderProducts}
             onChange={handleFormChange}
             onProductsChange={setOrderProducts}
-            readonlyField={['customerId', 'storeId', 'note', 'paymentId', 'voucherId']}
+            readonlyField={['customerId', 'storeId', 'note', 'paymentId', 'voucherCode']}
           />
 
         </Modal>

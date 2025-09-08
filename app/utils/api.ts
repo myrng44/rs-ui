@@ -384,7 +384,7 @@ export const ordersApi = {
   create: async (order: {
     customerId?: string;
     note?: string;
-    voucherId?: string;
+    voucherCode?: string;
     paymentId: string;
     lines: Array<{ productId: string; qtyOrdered: number }>;
   }) => {
@@ -408,7 +408,7 @@ export const ordersApi = {
           qtyAllocated: line.qtyOrdered,
           qtyPicked: line.qtyOrdered,
         })),
-        voucherId: order.voucherId ?? null,
+        voucherCode: order.voucherCode ?? null,
         paymentId: order.paymentId,
       }),
     });
@@ -508,14 +508,13 @@ export const ordersApi = {
   },
 };
 
-//dashboard API
+// Stats/Dashboard API
 export const statsApi = {
   getTopSoldProducts: async (days: number = 30, noProducts: number = 5) => {
     const searchParams = new URLSearchParams();
     searchParams.append('days', days.toString());
     searchParams.append('noProducts', noProducts.toString());
 
-    const queryString = searchParams.toString();
     const endpoint = `/secured/rest/v1/orders/most-products?${searchParams.toString()}`;
 
     return apiCall<Array<{
@@ -529,39 +528,38 @@ export const statsApi = {
     }>>(endpoint);
   },
 
-  getTotalProducts: async () => {
-    const response = await apiCallWithResponse<{}>('secured/rest/v1/products/count');
-    return {
-      totalProducts: response.body
-    };
+  getTotalProducts: async (): Promise<number> => {
+    const response = await apiCallWithResponse<number>(
+      '/secured/rest/v1/products/count',
+    );
+    return response.body as number;
   },
 
-  getMonthlyRevenues: async (days: number = 30) => {
-    const response = await apiCallWithResponse<{}>('secured/rest/v1/orders/revenue');
-    return {
-      revenues: response.body
-    };
+  getRevenue: async (days: number = 30): Promise<number> => {
+    const endpoint = `/secured/rest/v1/orders/revenue?days=${days}`;
+    const response = await apiCallWithResponse<number>(endpoint);
+    return response.body as number;
   },
 
-  getTotalCustomers: async () => {
-    const response = await apiCallWithResponse<{}>('secured/rest/v1/customers/count-new');
-    return {
-      totalCustomers: response.body
-    };
+  getTotalCustomers: async (): Promise<number> => {
+    const response = await apiCallWithResponse<number>(
+      '/secured/rest/v1/customers/count-new',
+    );
+    return response.body as number;
   },
 
-  paymentMethodsUsage: async () => {
+  getPaymentMethodsUsage: async (days: number = 30) => {
+    const endpoint = `/secured/rest/v1/payment-method/usage?days=${days}`;
     const response = await apiCallWithResponse<Array<{
       name: string;
       usage: number;
-    }>>('secured/rest/v1/orders/payment-method/usage?days=30');
+    }>>(endpoint);
 
-    return {
-      elements: response.body,
-      totalRecords: response.metadata.totalRecords || -1,
-    }
+    return response.body;
   },
 };
+
+export const dashboardApi = statsApi;
 
 //storeStock API
 export const storeStockApi = {
@@ -1075,4 +1073,3 @@ export const paymentMethodApi = {
     };
   },
 };
-

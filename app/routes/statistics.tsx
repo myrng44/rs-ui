@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Layout } from '~/components/Layout';
+import { statsApi } from '~/utils/api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -29,85 +30,11 @@ ChartJS.register(
 );
 
 export default function Statistics() {
-  const [timeRange, setTimeRange] = useState('month');
-
-  // Fake data for revenue chart
-  const revenueData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    datasets: [
-      {
-        label: 'Doanh thu (VNĐ)',
-        data: [12000000, 19000000, 15000000, 25000000, 22000000, 30000000, 28000000, 35000000, 32000000, 40000000, 38000000, 45000000],
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        fill: true,
-        tension: 0.4,
-      },
-    ],
-  };
-
-  // Fake data for top products
-  const topProductsData = {
-    labels: ['Strongbow Blueberry', 'Mì Hảo Hảo', 'Trà Shan Tuyết', 'Sand witch', 'Product 28'],
-    datasets: [
-      {
-        label: 'Số lượng bán',
-        data: [120, 95, 80, 65, 55],
-        backgroundColor: [
-          'rgba(239, 68, 68, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(168, 85, 247, 0.8)',
-          'rgba(245, 158, 11, 0.8)',
-        ],
-        borderColor: [
-          'rgba(239, 68, 68, 1)',
-          'rgba(34, 197, 94, 1)',
-          'rgba(59, 130, 246, 1)',
-          'rgba(168, 85, 247, 1)',
-          'rgba(245, 158, 11, 1)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  // Fake data for payment methods
-  const paymentMethodsData = {
-    labels: ['MOMO', 'CASH', 'Banking', 'Credit Card'],
-    datasets: [
-      {
-        data: [45, 30, 15, 10],
-        backgroundColor: [
-          'rgba(236, 72, 153, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(245, 158, 11, 0.8)',
-        ],
-        borderColor: [
-          'rgba(236, 72, 153, 1)',
-          'rgba(34, 197, 94, 1)',
-          'rgba(59, 130, 246, 1)',
-          'rgba(245, 158, 11, 1)',
-        ],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  // Fake data for daily orders
-  const dailyOrdersData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [
-      {
-        label: 'Số đơn hàng',
-        data: [25, 35, 40, 30, 45, 55, 50],
-        backgroundColor: 'rgba(16, 185, 129, 0.6)',
-        borderColor: 'rgba(16, 185, 129, 1)',
-        borderWidth: 2,
-      },
-    ],
-  };
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
+  const [revenueData, setRevenueData] = useState<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
+  const [topProductsData, setTopProductsData] = useState<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
+  const [paymentMethodsData, setPaymentMethodsData] = useState<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
+  const [summaryStats, setSummaryStats] = useState<Array<{ title: string; value: string; change: string; changeType: 'increase' | 'decrease' | 'neutral'; icon: string }>>([]);
 
   const chartOptions = {
     responsive: true,
@@ -132,37 +59,157 @@ export default function Statistics() {
     },
   };
 
-  // Summary stats with fake data
-  const summaryStats = [
-    {
-      title: 'Tổng doanh thu tháng này',
-      value: '45.000.000 ₫',
-      change: '+12.5%',
-      changeType: 'increase',
-      icon: '💰',
-    },
-    {
-      title: 'Đơn hàng trong tháng',
-      value: '1,234',
-      change: '+8.2%',
-      changeType: 'increase',
-      icon: '📦',
-    },
-    {
-      title: 'Sản phẩm bán chạy nhất',
-      value: 'Strongbow Blueberry',
-      change: '120 sản phẩm',
-      changeType: 'neutral',
-      icon: '⭐',
-    },
-    {
-      title: 'Khách hàng mới',
-      value: '156',
-      change: '+15.3%',
-      changeType: 'increase',
-      icon: '👥',
-    },
-  ];
+  const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  const formatNumber = (num: number) => new Intl.NumberFormat('vi-VN').format(num);
+
+  const rangeMeta: Record<typeof timeRange, { totalDays: number; bucketDays: number; revenueTitle: string }> = {
+    week: { totalDays: 7, bucketDays: 1, revenueTitle: 'Doanh thu 7 ngày gần đây' },
+    month: { totalDays: 28, bucketDays: 7, revenueTitle: 'Doanh thu theo tuần (30 ngày qua)' },
+    quarter: { totalDays: 90, bucketDays: 30, revenueTitle: 'Doanh thu theo tháng (3 tháng qua)' },
+    year: { totalDays: 360, bucketDays: 30, revenueTitle: 'Doanh thu theo tháng (12 tháng qua)' },
+  };
+
+  const buildDescendingWindows = (total: number, bucket: number) => {
+    const windows: number[] = [];
+    for (let d = total; d >= bucket; d -= bucket) windows.push(d);
+    return windows;
+  };
+
+  const getMonthLabelsBackwards = (count: number) => {
+    const labels: string[] = [];
+    const now = new Date();
+    for (let i = count - 1; i >= 0; i--) {
+      const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      labels.push(`${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear() % 100}`);
+    }
+    return labels;
+  };
+
+  const loadData = async (range: typeof timeRange) => {
+    const meta = rangeMeta[range];
+    const windowsDesc = buildDescendingWindows(meta.totalDays, meta.bucketDays);
+
+    const [revenueCum, topProducts, paymentUsage, totalCustomers] = await Promise.all([
+      Promise.all(windowsDesc.map((d) => statsApi.getRevenue(d))),
+      statsApi.getTopSoldProducts(range === 'week' ? 7 : range === 'month' ? 30 : range === 'quarter' ? 90 : 360, 5),
+      statsApi.getPaymentMethodsUsage(range === 'week' ? 7 : range === 'month' ? 30 : range === 'quarter' ? 90 : 360),
+      statsApi.getTotalCustomers(),
+    ]);
+
+    const deltas = revenueCum.map((v, i) => (i < revenueCum.length - 1 ? v - revenueCum[i + 1] : v));
+
+    let labels: string[] = [];
+    if (range === 'week') {
+      labels = Array.from({ length: windowsDesc.length }, (_, i) => `Ngày ${i + 1}`);
+    } else if (range === 'month') {
+      labels = ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'];
+    } else if (range === 'quarter') {
+      labels = ['Tháng 1', 'Tháng 2', 'Tháng 3'];
+    } else {
+      labels = getMonthLabelsBackwards(windowsDesc.length);
+    }
+
+    setRevenueData({
+      labels,
+      datasets: [
+        {
+          label: 'Doanh thu (VNĐ)',
+          data: deltas,
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.4,
+        },
+      ],
+    });
+
+    setTopProductsData({
+      labels: topProducts.map((p) => p.name),
+      datasets: [
+        {
+          label: 'Số lượng bán',
+          data: topProducts.map((p) => p.totalQuantitySold),
+          backgroundColor: [
+            'rgba(239, 68, 68, 0.8)',
+            'rgba(34, 197, 94, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(168, 85, 247, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+          ],
+          borderColor: [
+            'rgba(239, 68, 68, 1)',
+            'rgba(34, 197, 94, 1)',
+            'rgba(59, 130, 246, 1)',
+            'rgba(168, 85, 247, 1)',
+            'rgba(245, 158, 11, 1)',
+          ],
+          borderWidth: 1,
+        },
+      ],
+    });
+
+    setPaymentMethodsData({
+      labels: paymentUsage.map((m) => m.name),
+      datasets: [
+        {
+          data: paymentUsage.map((m) => m.usage),
+          backgroundColor: [
+            'rgba(236, 72, 153, 0.8)',
+            'rgba(34, 197, 94, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+          ],
+          borderColor: [
+            'rgba(236, 72, 153, 1)',
+            'rgba(34, 197, 94, 1)',
+            'rgba(59, 130, 246, 1)',
+            'rgba(245, 158, 11, 1)',
+          ],
+          borderWidth: 2,
+        },
+      ],
+    });
+
+    const totalRevenue = revenueCum[0] || 0;
+    const bestProduct = topProducts[0];
+    const topPayment = paymentUsage.reduce((max, cur) => (cur.usage > max.usage ? cur : max), paymentUsage[0] || { name: '', usage: 0 });
+
+    setSummaryStats([
+      {
+        title: `${rangeMeta[range].revenueTitle}`,
+        value: formatPrice(totalRevenue),
+        change: '',
+        changeType: 'neutral',
+        icon: '💰',
+      },
+      {
+        title: 'Sản phẩm bán chạy nhất',
+        value: bestProduct ? bestProduct.name : 'Không có dữ liệu',
+        change: bestProduct ? `${formatNumber(bestProduct.totalQuantitySold)} sản phẩm` : '',
+        changeType: 'neutral',
+        icon: '⭐',
+      },
+      {
+        title: 'Khách hàng mới (tổng)',
+        value: formatNumber(totalCustomers || 0),
+        change: '',
+        changeType: 'neutral',
+        icon: '👥',
+      },
+      {
+        title: 'PT thanh toán phổ biến',
+        value: topPayment?.name || '—',
+        change: topPayment ? `${formatNumber(topPayment.usage)} lần` : '',
+        changeType: 'neutral',
+        icon: '💳',
+      },
+    ]);
+  };
+
+  useEffect(() => {
+    loadData(timeRange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeRange]);
 
   return (
     <Layout>
@@ -218,7 +265,7 @@ export default function Statistics() {
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
           {/* Revenue Chart */}
           <div className='bg-white rounded-lg shadow p-6'>
-            <h3 className='text-lg font-semibold text-gray-900 mb-4'>Doanh thu theo tháng</h3>
+            <h3 className='text-lg font-semibold text-gray-900 mb-4'>Doanh thu</h3>
             <Line data={revenueData} options={chartOptions} />
           </div>
 
@@ -238,11 +285,6 @@ export default function Statistics() {
             </div>
           </div>
 
-          {/* Daily Orders Chart */}
-          <div className='bg-white rounded-lg shadow p-6'>
-            <h3 className='text-lg font-semibold text-gray-900 mb-4'>Đơn hàng theo ngày trong tuần</h3>
-            <Bar data={dailyOrdersData} options={chartOptions} />
-          </div>
         </div>
 
         {/* Additional Stats Table */}

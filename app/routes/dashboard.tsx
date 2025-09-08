@@ -32,6 +32,8 @@ export default function Dashboard() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [recentOrder, setRecentOrder] = useState<RecentOrder[]>([]);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+  const [totalCustomers, setTotalCustomers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedDays, setSelectedDays] = useState(7);
@@ -45,7 +47,7 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [totalProducts, recentOrderData, productsData] = await Promise.all([
+      const [totalProductsCount, recentOrderData, productsData, revenue30d, customersCount] = await Promise.all([
         dashboardApi.getTotalProducts(),
         ordersApi.getAll({
           offset: 0,
@@ -53,9 +55,13 @@ export default function Dashboard() {
           sort: '-createdTime',
         }),
         dashboardApi.getTopSoldProducts(7, 5),
+        dashboardApi.getRevenue(30),
+        dashboardApi.getTotalCustomers(),
       ]);
 
-      setTotalProducts(totalProducts);
+      setTotalProducts(totalProductsCount);
+      setMonthlyRevenue(revenue30d || 0);
+      setTotalCustomers(customersCount || 0);
       setRecentOrder(recentOrderData.elements);
       setTopProducts(
         productsData.map((product) => ({
@@ -145,13 +151,18 @@ export default function Dashboard() {
   };
 
   const getStatsData = () => {
-    if (!totalProducts) return -1;
+    if (!totalProducts) return [
+      { label: 'Tổng sản phẩm', value: '0', icon: '📦' },
+      { label: 'Đơn hàng gần đây', value: '0', icon: '🛒' },
+      { label: 'Doanh thu 30 ngày', value: formatPrice(0), icon: '💰' },
+      { label: 'Tổng khách hàng', value: '0', icon: '👥' },
+    ];
 
     return [
       { label: 'Tổng sản phẩm', value: formatNumber(totalProducts), icon: '📦' },
-      { label: 'Đơn hàng hôm nay', value: formatNumber(summary.todayOrders), icon: '🛒' },
-      { label: 'Doanh thu tháng', value: formatPrice(summary.monthlyRevenue), icon: '💰' },
-      { label: 'Tổng khách hàng', value: formatNumber(summary.totalCustomer), icon: '👥' },
+      { label: 'Đơn hàng gần đây', value: formatNumber(recentOrder.length), icon: '🛒' },
+      { label: 'Doanh thu 30 ngày', value: formatPrice(monthlyRevenue), icon: '💰' },
+      { label: 'Tổng khách hàng', value: formatNumber(totalCustomers), icon: '👥' },
     ];
   };
 

@@ -14,7 +14,7 @@ export interface OrderProduct {
 interface OrderFormData {
   customerId?: string;
   storeId: string;
-  voucherId?: string;
+  voucherCode?: string;
   note?: string;
   paymentId: string;
 }
@@ -133,7 +133,7 @@ export function OrderFormWithProducts({
       {/* Order Information */}
       <div className='space-y-4'>
         <h3 className='text-lg font-medium text-gray-900'>Thông tin đơn hàng</h3>
-        <div className='grid grid-cols-2 gap-4'>
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
           <Input
             label='Mã Khách hàng (tùy chọn)'
             value={formData.customerId}
@@ -142,13 +142,13 @@ export function OrderFormWithProducts({
             readonly={readonlyField?.includes('customerId')}
           />
         </div>
-        <div className='grid grid-cols-2 gap-4'>
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
           <Input
             label='Mã giảm giá (tùy chọn)'
-            value={formData.voucherId}
-            onChange={(e) => onChange('voucherId', e.target.value)}
+            value={formData.voucherCode}
+            onChange={(e) => onChange('voucherCode', e.target.value)}
             placeholder='Nhập mã giảm giá'
-            readonly={readonlyField?.includes('voucherId')}
+            readonly={readonlyField?.includes('voucherCode')}
           />
           <Dropdown
             label='Phương thức thanh toán'
@@ -186,16 +186,14 @@ export function OrderFormWithProducts({
 
         {products.length === 0 ? (
           <div className='text-center p-6 bg-gray-50 rounded-lg'>
-            <p className='text-gray-500'>Chưa có sản phẩm nào. Nhấn "Thêm sản phẩm" để bắt đầu.</p>
+            <p className='text-gray-500'>Chưa có sản ph��m nào. Nhấn "Thêm sản phẩm" để bắt đầu.</p>
           </div>
         ) : (
-          <div className='space-y-3'>
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             {products.map((product, index) => (
-              <div key={product.id} className='flex items-end gap-3 p-4 bg-gray-50 rounded-lg'>
-                <div className='flex-1'>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Sản phẩm {index + 1}
-                  </label>
+              <div key={product.id} className='grid md:grid-cols-12 items-end gap-3 p-4 bg-gray-50 rounded-lg'>
+                <div className='md:col-span-9'>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Sản phẩm {index + 1}</label>
                   <Dropdown
                     label={`Sản phẩm ${index + 1}`}
                     value={product.productId}
@@ -207,10 +205,8 @@ export function OrderFormWithProducts({
                     readonly={loadingProducts}
                   />
                 </div>
-                <div className='w-32'>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Số lượng
-                  </label>
+                <div className='md:col-span-2'>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Số lượng</label>
                   <Input
                     type='number'
                     value={product.quantity.toString()}
@@ -219,14 +215,16 @@ export function OrderFormWithProducts({
                     min='1'
                   />
                 </div>
-                <Button
-                  variant='danger'
-                  size='sm'
-                  onClick={() => removeProduct(product.id)}
-                  className='mb-1'
-                >
-                  Xóa
-                </Button>
+                <div className='md:col-span-1 flex md:justify-end'>
+                  <Button
+                    variant='danger'
+                    size='sm'
+                    onClick={() => removeProduct(product.id)}
+                    className='mb-1'
+                  >
+                    Xóa
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
