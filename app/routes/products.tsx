@@ -601,7 +601,7 @@ return (
           <div className="flex items-center gap-3">
             <Button onClick={() => setIsAddModalOpen(true)} className="ml-1">
               <Plus className="w-4 h-4 mr-1.5" />
-              Tạo đơn hàng
+              Tạo sản phẩm
             </Button>
           </div>
         </div>
@@ -705,7 +705,7 @@ return (
                       <td className="px-6 py-4 align-top">
                         <div className="text-sm text-gray-700">{p.supplier?.name ?? "-"}</div>
                       </td>
-{/* 
+                      {/* 
                       <td className="px-6 py-4 text-center align-top">
                         <button
                           onClick={() => handleViewBatches(p)}

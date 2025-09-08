@@ -6,7 +6,7 @@ export interface SearchField {
   value: string;
   label: string;
   type?: 'text' | 'number';
-  operator?: string; // Default operator for this field
+  operator?: string; 
 }
 
 export interface SearchResult {

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Search, Plus, Filter, RefreshCw } from 'lucide-react';
+import { Plus, Filter, RefreshCw } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
 import OrdersTable from '../components/orders/OrdersTable';
@@ -7,9 +7,9 @@ import OrdersFilters from '../components/orders/OrdersFilters';
 import OrderDetailModal from '../components/orders/OrderDetailModal';
 import OrderForm from '../components/orders/OrderForm';
 import { useOrders } from '../hooks/userOrders';
-import { ordersApi, paymentMethodApi, productsApi, storesApi } from '~/utils/api';
+import { ordersApi, paymentMethodApi, storesApi } from '~/utils/api';
 import { Layout } from '~/components/Layout';
-import { AutocompleteSearchBar, type SearchField, type SearchResult } from "~/components/AutoCompleteSearchBar";
+import { AutocompleteSearchBar, type SearchField, type SearchResult } from '~/components/AutoCompleteSearchBar';
 
 interface FilterValues {
   paymentMethod: string;
@@ -25,8 +25,10 @@ interface PaymentMethod {
 }
 
 const OrdersPage: React.FC = () => {
+  // searchQuery uses the same format AutocompleteSearchBar builds (e.g. "customerId:123" or "finalPrice>:100000")
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('');
+  // default sort: newest first by creation time
+  const [sortBy, setSortBy] = useState('-createdTime');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
@@ -40,7 +42,6 @@ const OrdersPage: React.FC = () => {
   // Modal states
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Data for dropdowns
@@ -65,17 +66,24 @@ const OrdersPage: React.FC = () => {
   });
 
   const ordersSearchFields: SearchField[] = [
-    { value: "name", label: "Khách hàng", type: "text", operator: "~" }
+    // { value: 'orderCode', label: 'Mã đơn', type: 'text', operator: ':' },
+    { value: 'customerId', label: 'Mã khách hàng', type: 'text', operator: ':' },
+    // { value: 'name', label: 'Tên khách hàng', type: 'text', operator: '~' },
+    // { value: 'storeId', label: 'Mã cửa hàng', type: 'text', operator: ':' },
+    // { value: 'voucherId', label: 'Mã voucher', type: 'text', operator: ':' },
+    { value: 'finalPrice', label: 'Giá cuối', type: 'number', operator: ':' }
   ];
 
-  const handleAutocompleteSearch = async (query: string): Promise<SearchResult[]> => {
+  const handleAutocompleteSearch = useCallback(async (query: string): Promise<SearchResult[]> => {
     try {
+      setSearchQuery(query);
+      setCurrentPage(1);
       return (await ordersApi.search(query)) as any;
     } catch (err) {
-      console.error("Autocomplete search error:", err);
+      console.error('Autocomplete search error:', err);
       return [];
     }
-  };
+  }, []);
 
   // Load payment methods and stores for filters
   useEffect(() => {
@@ -96,26 +104,32 @@ const OrdersPage: React.FC = () => {
     })();
   }, []);
 
-  const handleSearch = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentPage(1);
+  // Keep data fresh whenever key parameters change
+  useEffect(() => {
+    // trigger refetch when search/sort/filters/page changes
     refetch();
-  }, [refetch]);
+  }, [searchQuery, sortBy, filters, currentPage, itemsPerPage, refetch]);
 
   const handleSort = useCallback((field: string) => {
-    const newSort = sortBy === field ? `-${field}` : field;
-    setSortBy(newSort);
+    // toggle logic: if currently sorting by `field`, toggle between asc/desc
+    if (sortBy === field) {
+      setSortBy(`-${field}`);
+    } else if (sortBy === `-${field}`) {
+      setSortBy(field);
+    } else {
+      setSortBy(field);
+    }
     setCurrentPage(1);
   }, [sortBy]);
 
   const handleDelete = useCallback(async (orderId: string) => {
     try {
       await deleteOrder(orderId);
-      // Success message could be shown here
+      refetch();
     } catch (error) {
-      // Error handling
+      console.error('Delete order error', error);
     }
-  }, [deleteOrder]);
+  }, [deleteOrder, refetch]);
 
   const handleViewDetail = useCallback((order: any) => {
     setSelectedOrder(order);
@@ -140,7 +154,6 @@ const OrdersPage: React.FC = () => {
     if (!o) return 0;
     if (typeof o.finalPrice === 'number' && !Number.isNaN(o.finalPrice)) return o.finalPrice;
 
-    // If lines available on list item
     const lines = Array.isArray(o.lines) ? o.lines : (Array.isArray(o.saleLines) ? o.saleLines : []);
     const linesTotal = lines.reduce((s: number, l: any) => {
       const price = Number(l.unitPrice ?? l.price ?? l.unit_price ?? l.totalPrice ?? 0);
@@ -184,25 +197,15 @@ const OrdersPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Search and Controls */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-              <div className="flex-1 max-w-md">
-                <form onSubmit={handleSearch} className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Tìm kiếm theo tên khách hàng, mã đơn..."
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <Button type="submit" disabled={loading}>Tìm kiếm</Button>
-                </form>
-              </div>
-
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex-1 min-w-0">
+                <AutocompleteSearchBar
+                  searchFields={ordersSearchFields}
+                  onSearch={handleAutocompleteSearch}
+                  placeholder="Tìm kiếm theo mã khách hàng"
+                />
+          </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -217,7 +220,7 @@ const OrdersPage: React.FC = () => {
                   Tạo đơn hàng
                 </Button>
               </div>
-            </div>
+        </div>
 
             {/* Filters Panel */}
             {showFilters && (
@@ -271,7 +274,7 @@ const OrdersPage: React.FC = () => {
                 totalPages={totalPages}
                 totalItems={totalItems}
                 itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
+                onPageChange={(page) => setCurrentPage(page)}
                 loading={loading}
               />
             </div>
@@ -298,4 +301,3 @@ const OrdersPage: React.FC = () => {
 };
 
 export default OrdersPage;
-
