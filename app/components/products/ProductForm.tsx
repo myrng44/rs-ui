@@ -9,7 +9,6 @@ interface ProductFormData {
   description: string;
   unitPrice: string;
   categoryId: string;
-  supplierId: string;
 }
 
 interface ProductFormProps {
@@ -24,7 +23,6 @@ export function ProductForm({
   readonlyFields = [],
 }: ProductFormProps) {
   const [availableCategories, setAvailableCategories] = useState<Array<{ value: string; label: string }>>([]);
-  const [availableSuppliers, setAvailableSuppliers] = useState<Array<{ value: string; label: string }>>([]);
 
   useEffect(() => {
     loadCategories();
@@ -55,16 +53,9 @@ export function ProductForm({
       // supplierApi.getAll() trả { elements, totalElements }
       const response = await supplierApi.getAll();
       const elems = (response && (response as any).elements) || [];
-      setAvailableSuppliers([
-        { value: '', label: '-- Chọn nhà cung cấp --' },
-        ...elems.map((supplier: any) => ({
-          value: String(supplier.id),
-          label: supplier.name,
-        })),
-      ]);
+
     } catch (error) {
       console.error('Error loading suppliers', error);
-      setAvailableSuppliers([{ value: '', label: '-- Chọn nhà cung cấp --' }]);
     }
   };
 
@@ -108,15 +99,6 @@ export function ProductForm({
         options={availableCategories}
         required
         readonly={readonlyFields.includes('categoryId')}
-      />
-
-      <Dropdown
-        label='Nhà cung cấp'
-        value={formData.supplierId}
-        onChange={(e) => onChange('supplierId', e.target.value)}
-        options={availableSuppliers}
-        required
-        readonly={readonlyFields.includes('supplierId')}
       />
     </div>
   );

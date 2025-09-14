@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { useAuth } from "~/contexts/authContext";
 import { Button } from "./Button";
 import { Search, Bell } from "lucide-react";
+import { List as ListIcon } from "lucide-react";
 
 type NavbarProps = {
   toggleSidebar: () => void;
@@ -32,7 +33,7 @@ export function Navbar({ toggleSidebar, isCollapsed }: NavbarProps) {
           onClick={toggleSidebar}
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
         >
-          {isCollapsed ? "➡️" : "⬅️"}
+          {isCollapsed ?                     <ListIcon className="w-5 h-5" /> : <ListIcon className="w-5 h-5" />}
         </button>
         <Link to="/" className="text-xl font-bold text-primary">
           Store

@@ -1,0 +1,6 @@
+id,code,desc,created_at,created_by,updated_at,updated_by,deleted
+1,CREATE_ORDER,Tạo đơn hàng,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False
+2,VIEW_REPORT,Xem báo cáo,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False
+3,MANAGE_INVENTORY,Quản lý kho,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False
+4,MANAGE_CUSTOMERS,Quản lý khách hàng,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False
+5,SYSTEM_CONFIG,Cấu hình hệ thống,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False

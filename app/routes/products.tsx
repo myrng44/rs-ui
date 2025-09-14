@@ -2,18 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "~/components/Layout";
 import { Button } from "~/components/Button";
 import { Modal } from "~/components/Modal";
-import { DataTable } from "~/components/DataTable";
 import { Pagination } from "~/components/Pagination";
 import { ProductForm } from "~/components/products/ProductForm";
 import { productsApi, batchApi } from "~/utils/api";
-import { AutocompleteSearchBar, type SearchField, type SearchResult } from "~/components/AutoCompleteSearchBar";
+import AutocompleteSearchBar, { type SearchField, type SearchResult } from "~/components/AutoCompleteSearchBar";
 import { Toast } from "~/components/Toast";
 import { Grid as GridIcon, List as ListIcon, Pencil, Trash2, Plus, Eye, Calendar, AlertTriangle, Package } from "lucide-react";
 
 interface BatchInfo {
   id: string;
   batchCode: string;
-  manufactureDate: string;  
+  manufactureDate: string;
   expiryDate: string;
   originalQty: number;
   importedPrice?: number;
@@ -27,11 +26,9 @@ interface Product {
   description: string;
   unitPrice: number;
   categoryId: number | string;
-  supplierId: number | string;
   imageUrl?: string;
   stockQuantity?: number;
   category?: { name?: string } | null;
-  supplier?: { name?: string } | null;
   batches?: BatchInfo[];
   batchCount?: number;
 }
@@ -92,7 +89,7 @@ function BatchModal({
   if (!product) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Danh sách Batch - ${product.name}`} >
+    <Modal isOpen={isOpen} onClose={onClose} title={`Danh sách Batch - ${product.name}`}>
       <div className="space-y-4">
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="font-semibold text-gray-900 mb-2">Thông tin sản phẩm</h3>
@@ -101,7 +98,7 @@ function BatchModal({
               <span className="text-gray-600">SKU:</span> <span className="font-medium">{product.sku}</span>
             </div>
             <div>
-              <span className="text-gray-600">Giá bán:</span> <span className="font-medium">{formatPrice(product.unitPrice)}</span>
+              <span className="text-gray-600">Giá bán:</span> <span className="font-medium">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.unitPrice)}</span>
             </div>
           </div>
         </div>
@@ -217,8 +214,6 @@ function ProductCardGrid({
             <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-1">{product.name}</h3>
             <p className="text-gray-600 text-sm mb-2 line-clamp-2">{product.description || "Không có mô tả"}</p>
 
-        
-
             <div className="mt-auto pt-2">
               <p className="text-primary font-bold mb-2">{formatPrice(product.unitPrice)}</p>
               {product.stockQuantity !== undefined && (
@@ -272,13 +267,15 @@ export default function Products() {
     name: "",
     description: "",
     unitPrice: "",
-    categoryId: "",
-    supplierId: "",
-  });
+    categoryId: ""
+    });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState<"info" | "success" | "error" | "warning">("info");
+
+  // NEW: searchText is the raw query we send to backend, e.g. "name~abc"
+  const [searchText, setSearchText] = useState<string>("");
 
   const productSearchFields: SearchField[] = [
     { value: "sku", label: "Mã SKU", type: "text", operator: "~" },
@@ -288,14 +285,33 @@ export default function Products() {
   ];
 
   useEffect(() => {
-    loadProducts(1);
+    setCurrentPage(1);
+    loadProducts(1, searchText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText]);
+
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("products_view");
+      if (v === "table" || v === "grid") setViewMode(v as any);
+    } catch (e) {
+      // ignore
+    }
   }, []);
+
+  const changeView = (v: "table" | "grid") => {
+    setViewMode(v);
+    try {
+      localStorage.setItem("products_view", v);
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const handlePageChange = (page: number) => {
     if (page < 1) return;
     setCurrentPage(page);
-    loadProducts(page);
+    loadProducts(page, searchText);
   };
 
   const handleAutocompleteSearch = async (query: string): Promise<SearchResult[]> => {
@@ -317,39 +333,52 @@ export default function Products() {
         return {};
       }
 
-      console.log("Loading batch counts for products:", productIds);
       const batches = await batchApi.getByProducts(productIds);
-      console.log("Batch data received:", batches);
 
-      const batchCounts: Record<string, number> = {};
+      // productId -> set of distinct batch item ids (or batch ids)
+      const batchCountsMap: Record<string, Set<string>> = {};
 
-      batches.forEach((batch: any) => {
-        const batchProductId = String(batch.productId);
-        if (!batchCounts[batchProductId]) {
-          batchCounts[batchProductId] = 0;
-        }
-        batchCounts[batchProductId]++;
+      (batches || []).forEach((batch: any) => {
+        const prodId = String(batch.productId ?? batch.product_id ?? (batch.batchItem?.productId ?? ""));
+        if (!prodId) return;
+
+        const batchItemId =
+          batch.batchItemId ??
+          batch.batch_item_id ??
+          (batch.id ?? undefined) ??
+          batch.batchId ??
+          batch.batch_id;
+
+        const key = String(prodId);
+        if (!batchCountsMap[key]) batchCountsMap[key] = new Set<string>();
+        batchCountsMap[key].add(String(batchItemId ?? `${batch.batchCode ?? Math.random()}`));
       });
 
-      console.log("Final batch counts:", batchCounts);
-      return batchCounts;
+      const result: Record<string, number> = {};
+      Object.keys(batchCountsMap).forEach((k) => {
+        result[k] = batchCountsMap[k].size;
+      });
+      return result;
     } catch (err) {
       console.error("Error loading batch counts:", err);
       return {};
     }
   };
 
-  const loadProducts = async (page: number = currentPage) => {
+  // Modified to accept queryText (raw query like "name~abc")
+  const loadProducts = async (page: number = currentPage, queryText: string = "") => {
     try {
       setLoading(true);
       setError("");
       const offset = (page - 1) * itemsPerPage;
       const sort = "-createdTime";
-      const response = await productsApi.getAll({
-        offset,
-        limit: itemsPerPage,
-        sort,
-      });
+
+      const apiParams: any = { offset, limit: itemsPerPage, sort };
+      if (queryText && queryText.trim()) {
+        apiParams.query = queryText.includes("~") || queryText.includes("=") ? queryText : `name~${queryText}`;
+      }
+
+      const response = await productsApi.getAll(apiParams);
 
       const elems = (response && (response as any).elements) || [];
       const productsData = elems.map((p: any) => ({
@@ -359,12 +388,10 @@ export default function Products() {
         description: p.desc ?? p.description ?? "",
         unitPrice: Number(p.unitPrice ?? 0),
         categoryId: p.categoryId ?? "",
-        supplierId: p.supplierId ?? "",
         imageUrl: p.imageUrl ?? undefined,
         stockQuantity: p.stockQuantity ?? undefined,
-        category: p.category ?? null,
-        supplier: p.supplier ?? null,
-      }));
+        category: p.category ?? null
+            }));
 
       // Load batch counts for all products
       const productIds = productsData.map((p: Product) => p.id);
@@ -391,33 +418,37 @@ export default function Products() {
     setIsBatchModalOpen(true);
 
     try {
-      console.log("Loading batches for product:", product.id);
       const batches = await batchApi.getByProduct(product.id);
-      console.log("Batches loaded:", batches);
 
-      // Format dates from backend
       const formatDate = (dateValue: any): string => {
         if (!dateValue) return "";
-
         if (typeof dateValue === "string") return dateValue;
-
-        if (typeof dateValue === "object" && dateValue.year) {
+        if (typeof dateValue === "object" && (dateValue.year || dateValue.month || dateValue.day)) {
           const { year, month, day, hour = 0, minute = 0, second = 0 } = dateValue;
           return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second || 0).padStart(2, "0")}`;
         }
-
         return String(dateValue);
       };
 
-      const formattedBatches: BatchInfo[] = (batches || []).map((batch: any) => ({
-        id: String(batch.id),
-        batchCode: batch.batchCode,
-        manufactureDate: formatDate(batch.manufactureDate),
-        expiryDate: formatDate(batch.expiryDate),
-        originalQty: batch.originalQty || 0,
-        importedPrice: batch.importedPrice,
-        arrivalDate: batch.arrivalDate ? formatDate(batch.arrivalDate) : undefined,
-      }));
+      const formattedBatches: BatchInfo[] = (batches || []).map((batch: any, index: number) => {
+        const batchCode = batch.batchCode ?? batch.batch_code ?? (batch.batch?.batchCode ?? batch.batch?.batch_code ?? "");
+        const batchItemId = batch.batchItemId ?? batch.batch_item_id ?? batch.id ?? batch.batchId ?? batch.batch_id ?? `${batchCode}-${index}`;
+        const manufactureDate = batch.manufactureDate ?? batch.manufacture_date ?? (batch.batch?.manufactureDate ?? batch.batch?.manufacture_date);
+        const expiryDate = batch.expiryDate ?? batch.expiry_date ?? (batch.batch?.expiryDate ?? batch.batch?.expiry_date);
+        const arrivalDate = batch.arrivalDate ?? batch.arrival_date ?? (batch.batch?.arrivalDate ?? batch.batch?.arrival_date);
+        const importedPrice = batch.importedPrice ?? batch.import_price ?? batch.itemImportPrice ?? (batch.batchItem?.importPrice ?? batch.batch?.import_price);
+        const qty = batch.itemQty ?? batch.qty ?? batch.originalQty ?? batch.original_qty ?? 0;
+
+        return {
+          id: String(batchItemId),
+          batchCode: batchCode,
+          manufactureDate: formatDate(manufactureDate),
+          expiryDate: formatDate(expiryDate),
+          originalQty: Number(qty ?? 0),
+          importedPrice: importedPrice ?? undefined,
+          arrivalDate: arrivalDate ? formatDate(arrivalDate) : undefined,
+        } as BatchInfo;
+      });
 
       setSelectedProductBatches(formattedBatches);
     } catch (err) {
@@ -437,9 +468,8 @@ export default function Products() {
       name: "",
       description: "",
       unitPrice: "",
-      categoryId: "",
-      supplierId: "",
-    });
+      categoryId: ""
+        });
   };
 
   const validateForm = () => {
@@ -476,15 +506,14 @@ export default function Products() {
         name: formData.name,
         description: formData.description,
         unitPrice: formData.unitPrice,
-        categoryId: formData.categoryId,
-        supplierId: formData.supplierId,
+        categoryId: formData.categoryId
       });
       setToastMessage("Thêm sản phẩm thành công!");
       setToastType("success");
       setShowToast(true);
       setIsAddModalOpen(false);
       resetForm();
-      await loadProducts(currentPage);
+      await loadProducts(1, searchText);
     } catch (err: any) {
       setError("Không thể thêm sản phẩm");
       console.error("Error adding product:", err);
@@ -503,9 +532,8 @@ export default function Products() {
       name: product.name,
       description: product.description,
       unitPrice: product.unitPrice?.toString() ?? "0",
-      categoryId: String(product.categoryId ?? ""),
-      supplierId: String(product.supplierId ?? ""),
-    });
+      categoryId: String(product.categoryId ?? "")
+        });
     setIsEditModalOpen(true);
   };
 
@@ -521,8 +549,7 @@ export default function Products() {
         name: formData.name,
         description: formData.description,
         unitPrice: formData.unitPrice,
-        categoryId: formData.categoryId,
-        supplierId: formData.supplierId,
+        categoryId: formData.categoryId
       });
       setToastMessage("Cập nhật sản phẩm thành công!");
       setToastType("success");
@@ -530,7 +557,7 @@ export default function Products() {
       setIsEditModalOpen(false);
       setEditingProduct(null);
       resetForm();
-      await loadProducts(currentPage);
+      await loadProducts(currentPage, searchText);
     } catch (err: any) {
       setError("Không thể cập nhật sản phẩm");
       console.error("Error updating product:", err);
@@ -557,7 +584,7 @@ export default function Products() {
       const maxPage = Math.max(1, Math.ceil(newTotal / itemsPerPage));
       const targetPage = currentPage > maxPage ? maxPage : currentPage;
       setCurrentPage(targetPage);
-      await loadProducts(targetPage);
+      await loadProducts(targetPage, searchText);
     } catch (err: any) {
       setError("Không thể xóa sản phẩm");
       console.error("Error deleting product:", err);
@@ -573,203 +600,192 @@ export default function Products() {
       currency: "VND",
     }).format(price);
 
-const totalUnitPriceSum = products.reduce((s, p) => s + Number(p.unitPrice || 0), 0);
+  const totalUnitPriceSum = products.reduce((s, p) => s + Number(p.unitPrice || 0), 0);
 
-return (
-  <Layout>
-    <div className="space-y-6">
+  // onSubmit nhận query dạng "field<op>value" (ví dụ "name~abc") hoặc "" để clear
+  const handleSearchSubmit = (query: string) => {
+    setSearchText(query);
+    setCurrentPage(1);
+  };
 
+  // ----- Render -----
+  return (
+    <Layout>
+      <div className="space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex-1">
             <h1 className="text-2xl font-semibold text-gray-800">Quản lý Sản phẩm</h1>
             <p className="text-sm text-gray-500 mt-1">Thêm, sửa, xóa và quản lý sản phẩm</p>
           </div>
         </div>
-        
-      {/* TOP search bar + actions (mimic screenshot) */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            {/* search bar full width */}
-            <AutocompleteSearchBar
-              searchFields={productSearchFields}
-              onSearch={handleAutocompleteSearch}
-              placeholder="Tìm kiếm theo tên khách hàng, mã đơn, sản phẩm..."
-            />
-          </div>
 
-          <div className="flex items-center gap-3">
-            <Button onClick={() => setIsAddModalOpen(true)} className="ml-1">
-              <Plus className="w-4 h-4 mr-1.5" />
-              Tạo sản phẩm
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Summary cards */}
-      <div className="w-full">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
-            <div className="text-sm text-gray-500">Tổng sản phẩm</div>
-            <div className="mt-2 text-2xl font-bold text-gray-900">{totalElements ?? products.length}</div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
-            <div className="text-sm text-gray-500">Đang hiển thị</div>
-            <div className="mt-2 text-2xl font-bold text-blue-600">{products.length}</div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
-            <div className="text-sm text-gray-500">Trang hiện tại</div>
-            <div className="mt-2 text-2xl font-bold text-gray-900">
-              {currentPage}/{Math.max(1, Math.ceil((totalElements ?? 0) / itemsPerPage))}
+        {/* TOP search bar + actions */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <AutocompleteSearchBar
+                searchFields={productSearchFields}
+                onSearch={handleAutocompleteSearch}
+                onSubmit={handleSearchSubmit}
+                placeholder="Tìm kiếm theo SKU / tên / mô tả..."
+              />
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
-            <div className="text-sm text-gray-500">Tổng giá trị kho</div>
-            <div className="mt-2 text-2xl font-bold text-green-600">
-              {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(totalUnitPriceSum)}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setIsAddModalOpen(true)} className="ml-1">
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Tạo sản phẩm
+                </Button>
+
+                {/* View toggle buttons */}
+                <div className="inline-flex items-center rounded-md bg-gray-50 p-1 border border-gray-100">
+                  <button
+                    onClick={() => changeView("table")}
+                    title="Danh sách"
+                    className={`p-2 rounded-md ${viewMode === "table" ? "bg-white shadow-sm" : "hover:bg-gray-100"}`}
+                  >
+                    <ListIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => changeView("grid")}
+                    title="Lưới"
+                    className={`p-2 rounded-md ${viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-100"}`}
+                  >
+                    <GridIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
+        {/* Summary cards */}
+        <div className="w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
+              <div className="text-sm text-gray-500">Tổng sản phẩm</div>
+              <div className="mt-2 text-2xl font-bold text-gray-900">{totalElements ?? products.length}</div>
+            </div>
 
-      {/* Error */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
+            <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
+              <div className="text-sm text-gray-500">Đang hiển thị</div>
+              <div className="mt-2 text-2xl font-bold text-blue-600">{products.length}</div>
+            </div>
 
-      {/* Table or Grid */}
-      {viewMode === "table" ? (
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          {/* Table header */}
-          <div className="px-6 py-4 border-b">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">Danh sách sản phẩm</div>
-              <div className="text-sm text-gray-500">Tìm thấy {totalElements ?? products.length} kết quả</div>
+            <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
+              <div className="text-sm text-gray-500">Trang hiện tại</div>
+              <div className="mt-2 text-2xl font-bold text-gray-900">
+                {currentPage}/{Math.max(1, Math.ceil((totalElements ?? 0) / itemsPerPage))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-4 border flex flex-col justify-between min-h-[88px]">
+              <div className="text-sm text-gray-500">Tổng giá trị kho</div>
+              <div className="mt-2 text-2xl font-bold text-green-600">
+                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(totalUnitPriceSum)}
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Table body */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">MÃ SKU</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500"> ID SẢN PHẨM</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">TÊN SẢN PHẨM</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">NHÀ CUNG CẤP</th>
-                  {/* <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">BATCH</th> */}
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">GIÁ BÁN</th>
-                  {/* <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">TỒN</th> */}
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">THAO TÁC</th>
-                </tr>
-              </thead>
+        {/* Error */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
 
-              <tbody className="bg-white divide-y divide-gray-100">
-                {loading ? (
+        {/* Table or Grid */}
+        {viewMode === "table" ? (
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">Danh sách sản phẩm</div>
+                <div className="text-sm text-gray-500">Tìm thấy {totalElements ?? products.length} kết quả</div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50">
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      <Spinner className="w-8 h-8 text-gray-400 mx-auto" />
-                      <div className="mt-2">Đang tải sản phẩm...</div>
-                    </td>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">MÃ SKU</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500"> ID SẢN PHẨM</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">TÊN SẢN PHẨM</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">GIÁ BÁN</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">THAO TÁC</th>
                   </tr>
-                ) : products.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      Chưa có sản phẩm nào
-                    </td>
-                  </tr>
-                ) : (
-                  products.map((p) => (
-                    <tr key={p.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 align-top w-48">
-                        <div className="font-medium text-gray-900 truncate">{p.sku}</div>
-                        {/* <div className="text-xs text-gray-400 mt-1">ID: {p.id}</div> */}
-                      </td>
+                </thead>
 
-                      <td className="px-6 py-4 align-top w-48">
-                        <div className="font-medium text-gray-900 truncate">{p.id}</div>
-                      </td>
-
-                      <td className="px-6 py-4 align-top">
-                        <div className="font-medium text-gray-900">{p.name}</div>
-                        <div className="text-sm text-gray-500 line-clamp-2">{p.description || "-"}</div>
-                      </td>
-
-                      <td className="px-6 py-4 align-top">
-                        <div className="text-sm text-gray-700">{p.supplier?.name ?? "-"}</div>
-                      </td>
-                      {/* 
-                      <td className="px-6 py-4 text-center align-top">
-                        <button
-                          onClick={() => handleViewBatches(p)}
-                          className="text-sm font-medium text-blue-600 hover:underline"
-                        >
-                          {p.batchCount ?? 0} batch
-                        </button>
-                      </td> */}
-
-                      <td className="px-6 py-4 text-right align-top">
-                        <div className="text-lg font-bold text-green-600">{formatPrice(Number(p.unitPrice || 0))}</div>
-                      </td>
-
-                      {/* <td className="px-6 py-4 text-center align-top">
-                        {p.stockQuantity !== undefined ? (
-                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                            p.stockQuantity > 0 ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
-                          }`}>
-                            {p.stockQuantity > 0 ? `Còn ${p.stockQuantity}` : "Hết hàng"}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td> */}
-
-                      <td className="px-6 py-4 text-center align-top">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleViewBatches(p)}
-                            title="Xem batch"
-                            className="p-2 rounded-md hover:bg-gray-100"
-                          >
-                            <Eye className="w-5 h-5 text-blue-600" />
-                          </button>
-
-                          <button
-                            onClick={() => handleEdit(p)}
-                            title="Sửa"
-                            className="p-2 rounded-md hover:bg-gray-100"
-                          >
-                            <Pencil className="w-5 h-5 text-orange-500" />
-                          </button>
-
-                          <button
-                            onClick={() => handleDelete(p)}
-                            title="Xóa"
-                            className="p-2 rounded-md hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-5 h-5 text-red-500" />
-                          </button>
-                        </div>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                        <Spinner className="w-8 h-8 text-gray-400 mx-auto" />
+                        <div className="mt-2">Đang tải sản phẩm...</div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : products.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                        Chưa có sản phẩm nào
+                      </td>
+                    </tr>
+                  ) : (
+                    products.map((p) => (
+                      <tr key={p.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 align-top w-48">
+                          <div className="font-medium text-gray-900 truncate">{p.sku}</div>
+                        </td>
 
-          {/* Footer / Pagination */}
-          {/* <div className="px-6 py-4 border-t flex items-center justify-between"> */}
-            {/* <div className="text-sm text-gray-500">
-              Hiển thị {products.length} / {totalElements ?? products.length} sản phẩm
-            </div> */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 truncate">{p.id}</div>
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="font-medium text-gray-900">{p.name}</div>
+                          <div className="text-sm text-gray-500 line-clamp-2">{p.description || "-"}</div>
+                        </td>
+
+                        <td className="px-6 py-4 text-right align-top">
+                          <div className="text-lg font-bold text-green-600">{formatPrice(Number(p.unitPrice || 0))}</div>
+                        </td>
+
+                        <td className="px-6 py-4 text-center align-top">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleViewBatches(p)}
+                              title="Xem batch"
+                              className="p-2 rounded-md hover:bg-gray-100"
+                            >
+                              <Eye className="w-5 h-5 text-blue-600" />
+                            </button>
+
+                            <button
+                              onClick={() => handleEdit(p)}
+                              title="Sửa"
+                              className="p-2 rounded-md hover:bg-gray-100"
+                            >
+                              <Pencil className="w-5 h-5 text-orange-500" />
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(p)}
+                              title="Xóa"
+                              className="p-2 rounded-md hover:bg-gray-100"
+                            >
+                              <Trash2 className="w-5 h-5 text-red-500" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
             <div>
               {!loading && products.length > 0 && (
                 <Pagination
@@ -782,99 +798,129 @@ return (
                 />
               )}
             </div>
-          {/* </div> */}
-        </div>
-      ) : (
-        /* Grid view (keeps your existing card grid) */
-        <ProductCardGrid
-          products={products}
-          onEdit={handleEdit}
-          onDelete={(p) => handleDelete(p)}
-          onViewBatches={handleViewBatches}
+          </div>
+        ) : (
+          // Grid view container (header + grid + pagination)
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div className="text-sm text-gray-600">Danh sách sản phẩm</div>
+              <div className="text-sm text-gray-500">Tìm thấy {totalElements ?? products.length} kết quả</div>
+            </div>
+
+            <div className="p-6">
+              {loading ? (
+                <div className="text-center py-12">
+                  <Spinner className="w-10 h-10 text-gray-400 mx-auto" />
+                  <div className="mt-3 text-gray-600">Đang tải sản phẩm...</div>
+                </div>
+              ) : products.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">Chưa có sản phẩm nào</div>
+              ) : (
+                <ProductCardGrid
+                  products={products}
+                  onEdit={handleEdit}
+                  onDelete={(p) => handleDelete(p)}
+                  onViewBatches={handleViewBatches}
+                />
+              )}
+            </div>
+
+            <div className="px-6 py-4">
+              {!loading && products.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.max(1, Math.ceil((totalElements ?? 0) / itemsPerPage))}
+                  totalItems={totalElements ?? products.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handlePageChange}
+                  loading={loading}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Batch Modal */}
+        <BatchModal
+          isOpen={isBatchModalOpen}
+          onClose={() => {
+            setIsBatchModalOpen(false);
+            setSelectedProduct(null);
+            setSelectedProductBatches([]);
+          }}
+          product={selectedProduct}
+          batches={selectedProductBatches}
+          loading={loadingBatches}
         />
-      )}
 
-      {/* Batch Modal */}
-      <BatchModal
-        isOpen={isBatchModalOpen}
-        onClose={() => {
-          setIsBatchModalOpen(false);
-          setSelectedProduct(null);
-          setSelectedProductBatches([]);
-        }}
-        product={selectedProduct}
-        batches={selectedProductBatches}
-        loading={loadingBatches}
-      />
+        {/* Add / Edit Modals */}
+        <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            resetForm();
+          }}
+          title="Thêm sản phẩm mới"
+          footer={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  resetForm();
+                }}
+                disabled={isSubmitting}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleAdd} disabled={isSubmitting}>
+                {isSubmitting ? "Đang thêm..." : "Thêm"}
+              </Button>
+            </>
+          }
+        >
+          <ProductForm formData={formData} onChange={handleFormChange} />
+        </Modal>
 
-      {/* Add / Edit Modals kept unchanged below */}
-      <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          resetForm();
-        }}
-        title="Thêm sản phẩm mới"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsAddModalOpen(false);
-                resetForm();
-              }}
-              disabled={isSubmitting}
-            >
-              Hủy
-            </Button>
-            <Button onClick={handleAdd} disabled={isSubmitting}>
-              {isSubmitting ? "Đang thêm..." : "Thêm"}
-            </Button>
-          </>
-        }
-      >
-        <ProductForm formData={formData} onChange={handleFormChange} />
-      </Modal>
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingProduct(null);
+            resetForm();
+          }}
+          title="Chỉnh sửa sản phẩm"
+          footer={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingProduct(null);
+                  resetForm();
+                }}
+                disabled={isSubmitting}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleUpdate} disabled={isSubmitting}>
+                {isSubmitting ? "Đang cập nhật..." : "Cập nhật"}
+              </Button>
+            </>
+          }
+        >
+          <ProductForm formData={formData} onChange={handleFormChange} readonlyFields={["sku"]} />
+        </Modal>
 
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingProduct(null);
-          resetForm();
-        }}
-        title="Chỉnh sửa sản phẩm"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setEditingProduct(null);
-                resetForm();
-              }}
-              disabled={isSubmitting}
-            >
-              Hủy
-            </Button>
-            <Button onClick={handleUpdate} disabled={isSubmitting}>
-              {isSubmitting ? "Đang cập nhật..." : "Cập nhật"}
-            </Button>
-          </>
-        }
-      >
-        <ProductForm formData={formData} onChange={handleFormChange} readonlyFields={["sku"]} />
-      </Modal>
-
-      {/* Toast */}
-      {showToast && (
-        <Toast
-          message={toastMessage}
-          type={toastType}
-          onClose={() => setShowToast(false)}
-        />
-      )}
-    </div>
-  </Layout>
-);
+        {/* Toast */}
+        {showToast && (
+          <Toast
+            message={toastMessage}
+            type={toastType}
+            onClose={() => setShowToast(false)}
+          />
+        )}
+      </div>
+    </Layout>
+  );
 }

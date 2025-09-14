@@ -22,13 +22,14 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // searchText is the raw query we send to backend (e.g. "name~abc" or "" to clear)
   const [searchText, setSearchText] = useState('');
   const [sortValue, setSortValue] = useState('-createdTime');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const itemsPerPage = 9; // card view: 9 per page
+  const itemsPerPage = 9; 
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,21 +44,34 @@ export default function CategoriesPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // ===== API call =====
-  const loadCategories = async (page: number = currentPage) => {
+  const loadCategories = async (page: number = currentPage, queryText: string = searchText) => {
     try {
       setLoading(true);
       const offset = (page - 1) * itemsPerPage;
-      const response = await categoryApi.getAll({
+
+      const apiParams: any = {
         offset,
         limit: itemsPerPage,
         sort: sortValue,
-        ...(searchText ? { search: `name~${searchText}` } : {}),
-      });
+      };
+
+      if (queryText && queryText.trim()) {
+        // if caller already passed a full query (contains operator), use it as-is
+        apiParams.query = queryText.includes('~') || queryText.includes('=') ? queryText : `name~${queryText}`;
+      }
+
+      const response = await categoryApi.getAll(apiParams);
 
       const elems = (response && (response as any).elements) || [];
-      const total = (response && (response as any).totalElements) || elems.length;
+      // ensure id is string to avoid JS rounding issues
+      const normalized = elems.map((e: any) => ({
+        ...e,
+        id: e.id !== undefined && e.id !== null ? String(e.id) : '',
+      }));
 
-      setCategories(elems);
+      const total = (response && (response as any).totalElements) || normalized.length;
+
+      setCategories(normalized);
       setTotalItems(total);
       setTotalPages(Math.max(1, Math.ceil(total / itemsPerPage)));
     } catch (err) {
@@ -68,6 +82,7 @@ export default function CategoriesPage() {
     }
   };
 
+  // autocomplete provider (only returns suggestions)
   const handleAutocompleteSearch = async (query: string): Promise<SearchResult[]> => {
     try {
       return (await categoryApi.search(query)) as any;
@@ -77,10 +92,18 @@ export default function CategoriesPage() {
     }
   };
 
-  useEffect(() => {
-    // reset to page 1 when search or sort changes
+  // onSubmit handler from AutocompleteSearchBar:
+  // receives raw query like "name~abc" or "" to clear
+  const handleSearchSubmit = (query: string) => {
+    setSearchText(query || '');
     setCurrentPage(1);
-    loadCategories(1);
+    // load triggered by useEffect below
+  };
+
+  useEffect(() => {
+    // reload page 1 whenever searchText or sortValue changes
+    setCurrentPage(1);
+    loadCategories(1, searchText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText, sortValue]);
 
@@ -116,7 +139,7 @@ export default function CategoriesPage() {
         setToast({ message: 'Thêm mới thành công', type: 'success' });
       }
       setIsModalOpen(false);
-      loadCategories(currentPage);
+      loadCategories(currentPage, searchText);
     } catch (err) {
       console.error('Save category error', err);
       setToast({ message: 'Lỗi lưu danh mục', type: 'error' });
@@ -128,12 +151,11 @@ export default function CategoriesPage() {
     try {
       await categoryApi.delete(id);
       setToast({ message: 'Xoá thành công', type: 'success' });
-      // nếu xóa làm trang hiện tại trống, chuyển trang trước đó
       const newTotal = Math.max(0, totalItems - 1);
       const maxPage = Math.max(1, Math.ceil(newTotal / itemsPerPage));
       const targetPage = currentPage > maxPage ? maxPage : currentPage;
       setCurrentPage(targetPage);
-      loadCategories(targetPage);
+      loadCategories(targetPage, searchText);
     } catch (err) {
       console.error('Delete category error', err);
       setToast({ message: 'Lỗi xoá danh mục', type: 'error' });
@@ -146,16 +168,21 @@ export default function CategoriesPage() {
   return (
     <Layout>
       <div className="p-6 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quản lý Danh Mục</h1>
-            <p className="text-sm text-gray-600 mt-1">Danh sách danh mục sản phẩm</p>
-          </div>
 
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex-1">
+            <h1 className="text-2xl font-semibold text-gray-800">Quản lý Danh Mục</h1>
+            <p className="text-sm text-gray-500 mt-1">Thêm, sửa, xóa và quản lý sản phẩm</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex-1 md:mx-6">
             <AutocompleteSearchBar
               searchFields={categoriesSearchFields}
               onSearch={handleAutocompleteSearch}
+              onSubmit={handleSearchSubmit}
               placeholder="Tìm danh mục..."
             />
           </div>
@@ -164,10 +191,9 @@ export default function CategoriesPage() {
             <Button onClick={openCreateModal}>+ Thêm danh mục</Button>
           </div>
         </div>
-
+        </div>
         {/* Sort + optional controls (kept simple) */}
         <div className="flex items-center justify-between gap-4">
-          {/* <div className="text-sm text-gray-500">Sắp xếp:</div> */}
           <div className="flex items-center gap-2">
             <select
               value={sortValue}
@@ -239,7 +265,7 @@ export default function CategoriesPage() {
                 itemsPerPage={itemsPerPage}
                 onPageChange={(page) => {
                   setCurrentPage(page);
-                  loadCategories(page);
+                  loadCategories(page, searchText);
                 }}
                 loading={loading}
               />

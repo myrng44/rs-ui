@@ -51,13 +51,6 @@ const features = [
     desc: "Tạo và quản lý mã giảm giá",
     link: "/vouchers",
     btn: "Quản lý Mã giảm giá",
-  },
-  {
-    icon: "💳",
-    title: "Thanh toán",
-    desc: "Quản lý phương thức và giao dịch thanh toán",
-    link: "/payments",
-    btn: "Quản lý Thanh toán",
   }
 ];
 

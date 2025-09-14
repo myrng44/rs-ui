@@ -1,3 +1,5 @@
+import { address } from "framer-motion/client";
+
 const API_BASE_URL = 'http://localhost:8080';
 
 interface ApiError extends Error {
@@ -136,7 +138,6 @@ export const productsApi = {
     description: string;
     unitPrice: string;
     categoryId: string;
-    supplierId: string; 
   }) => {
     const response = await apiCallWithResponse<{
       id: string;
@@ -152,9 +153,8 @@ export const productsApi = {
         name: product.name,
         description: product.description,
         unitPrice: product.unitPrice,
-        categoryId: product.categoryId,
-        supplierId: product.supplierId,
-      }),
+        categoryId: product.categoryId
+            }),
     });
 
     return response.data;
@@ -168,8 +168,6 @@ export const productsApi = {
       description: string;
       unitPrice: string;
       categoryId: string;
-      supplierId: string; 
-
     },
   ) => {
     const response = await apiCallWithResponse<{
@@ -186,9 +184,8 @@ export const productsApi = {
         name: product.name,
         description: product.description,
         unitPrice: product.unitPrice,
-        categoryId: product.categoryId,
-        supplierId: product.supplierId,
-      }),
+        categoryId: product.categoryId
+            }),
     });
 
     return response.data;
@@ -676,9 +673,9 @@ export const supplierApi = {
   getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.query) searchParams.append('query', params.query);
-    if (params?.offset) searchParams.append('offset', params.offset.toString());
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.sort) searchParams.append('sort', params.sort);
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
 
     const queryString = searchParams.toString();
     const endpoint = `/secured/rest/v1/suppliers${queryString ? `?${queryString}` : ''}`;
@@ -686,8 +683,8 @@ export const supplierApi = {
     const response = await apiCallWithPageResponse<{
       id: string;
       name: string;
-      address: string;
-      contact: string;
+      locationId?: string | null; 
+      contact?: string | null;
     }>(endpoint);
 
     return {
@@ -700,22 +697,31 @@ export const supplierApi = {
     const response = await apiCallWithResponse<{
       id: string;
       name: string;
-      address: string;
-      contact: string;
+      locationId?: string | null; 
+      contact?: string | null;
     }>(`/secured/rest/v1/suppliers/${id}`);
 
     return response.data;
   },
 
-  create: async (supplier: { name: string; address: string; contact: string }) => {
+  create: async (supplier: { name: string; locationId?: string | null; contact?: string | null }) => {
+    const payload = {
+      name: supplier.name,
+      locationId:
+        supplier.locationId === undefined || supplier.locationId === null || supplier.locationId === ''
+          ? null
+          : String(supplier.locationId), 
+      contact: supplier.contact ?? null,
+    };
+
     const response = await apiCallWithResponse<{
       id: string;
       name: string;
-      address: string;
-      contact: string;
+      locationId?: string | null;
+      contact?: string | null;
     }>(`/secured/rest/v1/suppliers`, {
       method: 'POST',
-      body: JSON.stringify(supplier),
+      body: JSON.stringify(payload),
     });
 
     return response.data;
@@ -723,20 +729,25 @@ export const supplierApi = {
 
   update: async (
     id: string,
-    supplier: {
-      name: string;
-      address: string;
-      contact: string;
-    },
+    supplier: { name?: string;  locationId?: string | null; contact?: string | null },
   ) => {
+    const payload = {
+      name: supplier.name,
+      locationId:
+        supplier.locationId === undefined || supplier.locationId === null || supplier.locationId === ''
+          ? null
+          : String(supplier.locationId),
+      contact: supplier.contact ?? null,
+    };
+
     const response = await apiCallWithResponse<{
       id: string;
       name: string;
-      address: string;
-      contact: string;
+      locationId?: string | null;
+      contact?: string | null;
     }>(`/secured/rest/v1/suppliers/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(supplier),
+      body: JSON.stringify(payload),
     });
 
     return response.data;
@@ -758,12 +769,36 @@ export const supplierApi = {
 
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-      const apiResponse = await response.json() as ApiResponse<any>;
+      const apiResponse = (await response.json()) as ApiResponse<any>;
       return apiResponse.data;
     }
     return null;
   },
+
+  // tìm kiếm nhanh (typeahead)
+  search: async (query: string, limit: number = 10) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('query', query);
+    searchParams.append('limit', limit.toString());
+    searchParams.append('offset', '0');
+
+    const endpoint = `/secured/rest/v1/suppliers?${searchParams.toString()}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      name: string;
+      locationId?: string | null; 
+      contact?: string | null;
+    }>(endpoint);
+
+    return response.data.content.map(s => ({
+      ...s,
+      displayText: `${s.name}${s.contact ? ` — ${s.contact}` : ''}`,
+    }));
+  },
 };
+
+
 
 //voucher API
 export const voucherApi = {
@@ -1021,58 +1056,172 @@ export const paymentMethodApi = {
   },
 };
 
+//BatchApi 
 
-
+/**
+ * BatchDto (client-side) -- flexible để tương thích legacy & new schema
+ */
 export interface BatchDto {
-  id: string;
-  batchCode: string;
-  productId: number | string;
-  supplierId: number;
-  originalQty: number;
-  importedPrice: number; 
-  manufactureDate: string | any; 
-  expiryDate: string | any; 
-  arrivalDate: string | any; 
+  // general identifiers (may be batch id or batch_item id depending on backend)
+  id?: string;             // could be batch id or batch_item id (legacy ambiguity)
+  batchId?: string;        // explicit batch id if backend returns it
+  batchItemId?: string;    // explicit batch_item id if backend returns it
+  batchCode?: string;
+
+  // product / item level (may appear in batch_item responses)
+  productId?: number | string;
+  itemQty?: number;        // qty in batch_item
+  originalQty?: number;    // legacy field on batch
+  importedPrice?: number;  // often on batch_item (import price per item)
+  manufactureDate?: string | any;
+  expiryDate?: string | any;
+  arrivalDate?: string | any;
+
+  supplierName?: string;
+  // raw payload for debugging
+  __raw?: any;
 }
+
+/**
+ * Payload type to create a batch. Note: creating items likely requires a separate endpoint.
+ */
+export type BatchCreatePayload = {
+  batchCode: string;
+  supplierId: number;
+  manufactureDate?: string;
+  expiryDate?: string;
+  arrivalDate?: string;
+  // optional: backend might not support items creation inside batch; left here for future
+  items?: Array<{
+    productId: number | string;
+    qty: number;
+    importPrice?: number;
+    manufactureDate?: string;
+    expiryDate?: string;
+  }>;
+};
 
 export const batchApi = {
   getByProduct: async (productId: string | number) => {
     const response = await apiCallWithResponse<BatchDto[]>(
       `/secured/rest/v1/batch/by-product?productId=${productId}`
     );
-    return response.data;
+    // attach raw for debugging if needed
+    return (response.data || []).map((b) => ({ ...b, __raw: b }));
   },
 
   getByProducts: async (productIds: string[]) => {
-    const productIdsParam = productIds.join(',');
-    console.log('🌐 Sending batch request with productIds:', productIdsParam);
-    
+    const productIdsParam = productIds.join(",");
+    console.log("🌐 Sending batch request with productIds:", productIdsParam);
+
     const response = await apiCallWithResponse<BatchDto[]>(
       `/secured/rest/v1/batch/by-product?productIds=${productIdsParam}`
     );
-    
-    console.log('📦 Batch API response:', response.data);
-    return response.data;
+    console.log("📦 Batch API response:", response.data);
+    return (response.data || []).map((b) => ({ ...b, __raw: b }));
   },
 
-  getAll: async (params?: { 
-    query?: string; 
-    sort?: string; 
-    offset?: number; 
+  getAll: async (params?: {
+    query?: string;
+    sort?: string;
+    offset?: number;
     limit?: number;
     productId?: string | number;
   }) => {
     const searchParams = new URLSearchParams();
-    if (params?.query) searchParams.append('query', params.query);
-    if (params?.offset) searchParams.append('offset', params.offset.toString());
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.sort) searchParams.append('sort', params.sort);
-    if (params?.productId) searchParams.append('productId', params.productId.toString());
+    if (params?.query) searchParams.append("query", params.query);
+    if (params?.offset) searchParams.append("offset", params.offset!.toString());
+    if (params?.limit) searchParams.append("limit", params.limit!.toString());
+    if (params?.sort) searchParams.append("sort", params.sort);
+    if (params?.productId) searchParams.append("productId", params.productId.toString());
 
     const queryString = searchParams.toString();
-    const endpoint = `/secured/rest/v1/batch${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `/secured/rest/v1/batch${queryString ? `?${queryString}` : ""}`;
 
     const response = await apiCallWithPageResponse<BatchDto>(endpoint);
+
+    return {
+      elements: response.data.content.map((c: any) => ({ ...c, __raw: c })),
+      totalElements: response.data.totalElements,
+    };
+  },
+
+  getById: async (id: string) => {
+    const response = await apiCallWithResponse<BatchDto>(`/secured/rest/v1/batch/${id}`);
+    return { ...response.data, __raw: response.data };
+  },
+
+  create: async (batch: BatchCreatePayload) => {
+    // Note: current backend BatchController#create expects BatchDto (batch-level)
+    // If you want to create batch_items as well, backend must provide /batch-item endpoint.
+    const payload: any = {
+      batchCode: batch.batchCode,
+      supplierId: batch.supplierId,
+      manufactureDate: batch.manufactureDate,
+      expiryDate: batch.expiryDate,
+      arrivalDate: batch.arrivalDate,
+    };
+
+    const response = await apiCallWithResponse<BatchDto>(`/secured/rest/v1/batch`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    // If items were provided and you later add batch-item endpoint,
+    // you can call it here to create items for the created batch.
+    return { ...response.data, __raw: response.data };
+  },
+
+  update: async (id: string, batch: Partial<BatchCreatePayload>) => {
+    const response = await apiCallWithResponse<BatchDto>(`/secured/rest/v1/batch/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(batch),
+    });
+    return { ...response.data, __raw: response.data };
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/batch/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const apiResponse = (await response.json()) as ApiResponse<any>;
+      return apiResponse.data;
+    }
+    return null;
+  },
+};
+
+
+//storesApi
+export const storesApi = {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.query) searchParams.append('query', params.query);
+    if (params?.sort) searchParams.append('sort', params.sort);
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+
+    const queryString = searchParams.toString();
+    const endpoint = `/secured/rest/v1/store${queryString ? `?${queryString}` : ''}`;
+
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      name: string;
+      locationId?: string | null;
+      phone?: string | null;
+    }>(endpoint);
 
     return {
       elements: response.data.content,
@@ -1081,60 +1230,67 @@ export const batchApi = {
   },
 
   getById: async (id: string) => {
-    const response = await apiCallWithResponse<BatchDto>(
-      `/secured/rest/v1/batch/${id}`
-    );
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      locationId?: string | null;
+      phone?: string | null;
+    }>(`/secured/rest/v1/store/${id}`);
+
     return response.data;
   },
 
-  create: async (batch: {
-    batchCode: string;
-    productId: number | string; // ← Fix: Accept both types
-    supplierId: number;
-    originalQty: number;
-    importedPrice: number;
-    manufactureDate: string;
-    expiryDate: string;
-    arrivalDate: string;
-  }) => {
-    const response = await apiCallWithResponse<BatchDto>(
-      `/secured/rest/v1/batch`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          ...batch,
-          productId: typeof batch.productId === 'string' ? parseInt(batch.productId) : batch.productId
-        }),
-      }
-    );
+  create: async (store: { name: string; locationId?: number | string | null; phone?: string | null }) => {
+    const payload = {
+      name: store.name,
+      locationId:
+        store.locationId === undefined || store.locationId === null
+          ? null
+          : typeof store.locationId === 'string',
+      phone: store.phone ?? null,
+    };
+
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      locationId?: string | null;
+      phone?: string | null;
+    }>(`/secured/rest/v1/store`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
     return response.data;
   },
 
   update: async (
     id: string,
-    batch: {
-      batchCode: string;
-      productId: number;
-      supplierId: number;
-      originalQty: number;
-      importedPrice: number;
-      manufactureDate: string;
-      expiryDate: string;
-      arrivalDate: string;
-    }
+    store: { name?: string;  locationId?: string | null; phone?: string | null },
   ) => {
-    const response = await apiCallWithResponse<BatchDto>(
-      `/secured/rest/v1/batch/${id}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify(batch),
-      }
-    );
+    const payload = {
+      name: store.name,
+      locationId:
+        store.locationId === undefined || store.locationId === null
+          ? null
+          : typeof store.locationId === 'string',
+      phone: store.phone ?? null,
+    };
+
+    const response = await apiCallWithResponse<{
+      id: string;
+      name: string;
+      locationId?: string | null;
+      phone?: string | null;
+    }>(`/secured/rest/v1/store/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+
     return response.data;
   },
 
   delete: async (id: string) => {
-    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/batch/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/secured/rest/v1/store/${id}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
@@ -1149,37 +1305,31 @@ export const batchApi = {
 
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-      const apiResponse = await response.json() as ApiResponse<any>;
+      const apiResponse = (await response.json()) as ApiResponse<any>;
       return apiResponse.data;
     }
     return null;
   },
-};
 
-//store API
-export const storesApi = {
-getAll: async (params?: { query?: string; offset?: number; limit?: number }) => {
-const searchParams = new URLSearchParams();
-if (params?.query) searchParams.append('query', params.query);
-if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
-if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+  // tìm kiếm nhanh (typeahead)
+  search: async (query: string, limit: number = 10) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('query', query);
+    searchParams.append('limit', limit.toString());
+    searchParams.append('offset', '0');
 
+    const endpoint = `/secured/rest/v1/store?${searchParams.toString()}`;
 
-const endpoint = `/secured/rest/v1/store${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+    const response = await apiCallWithPageResponse<{
+      id: string;
+      name: string;
+      locationId?: string | null;
+      phone?: string | null;
+    }>(endpoint);
 
-
-const response = await apiCallWithPageResponse<any>(endpoint);
-
-
-return {
-elements: (response.data.content || []).map((s: any) => ({ ...s, id: String(s.id) })),
-totalElements: response.data.totalElements,
-};
-},
-
-
-getById: async (id: string) => {
-const response = await apiCallWithResponse<any>(`/secured/rest/v1/store/${id}`);
-return { ...response.data, id: String(response.data.id) };
-}
+    return response.data.content.map(s => ({
+      ...s,
+      displayText: `${s.name}${s.phone ? ` — ${s.phone}` : ''}`,
+    }));
+  },
 };

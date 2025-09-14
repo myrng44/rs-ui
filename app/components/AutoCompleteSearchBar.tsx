@@ -6,12 +6,15 @@ export interface SearchField {
   value: string;
   label: string;
   type?: 'text' | 'number';
-  operator?: string; 
+  operator?: string;
 }
 
 export interface SearchResult {
   id: string;
   displayText: string;
+  // optional helper value/name for constructing queries
+  value?: string;
+  name?: string;
   [key: string]: any;
 }
 
@@ -21,6 +24,11 @@ interface AutocompleteSearchBarProps {
   placeholder?: string;
   debounceMs?: number;
   maxResults?: number;
+
+  // NEW:
+  onSelect?: (item: SearchResult) => void; // gọi khi user click 1 gợi ý
+  onSubmit?: (query: string) => void;      // gọi khi user submit (Enter) hoặc chọn gợi ý nếu submitOnSelect=true
+  submitOnSelect?: boolean;                // default true
 }
 
 // Mapping for different operators
@@ -50,12 +58,15 @@ const getDefaultOperator = (field: SearchField): string => {
 };
 
 export function AutocompleteSearchBar({
-                                        searchFields,
-                                        onSearch,
-                                        placeholder = "Nhập từ khóa tìm kiếm...",
-                                        debounceMs = 500,
-                                        maxResults = 10
-                                      }: AutocompleteSearchBarProps) {
+  searchFields,
+  onSearch,
+  placeholder = "Nhập từ khóa tìm kiếm...",
+  debounceMs = 500,
+  maxResults = 10,
+  onSelect,
+  onSubmit,
+  submitOnSelect = true
+}: AutocompleteSearchBarProps) {
   const [selectedField, setSelectedField] = useState(searchFields[0]?.value || "");
   const [searchValue, setSearchValue] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -92,7 +103,7 @@ export function AutocompleteSearchBar({
       setIsLoading(true);
       setError("");
 
-      const selectedFieldObj = searchFields.find(f => f.value === fieldValue);
+      const selectedFieldObj = searchFields.find(f => f.value === fieldValue) || searchFields[0];
       const operator = getDefaultOperator(selectedFieldObj!);
       const searchQuery = `${fieldValue}${operator}${query.trim()}`;
 
@@ -103,6 +114,7 @@ export function AutocompleteSearchBar({
       setError("Không thể tìm kiếm");
       console.error("Search error:", err);
       setSearchResults([]);
+      setShowDropdown(false);
     } finally {
       setIsLoading(false);
     }
@@ -137,10 +149,11 @@ export function AutocompleteSearchBar({
 
   const handleFieldChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedField(e.target.value);
-    // Trigger new search with current value if exists
+    // Keep current searchValue but re-query quickly
     if (searchValue.trim()) {
-      setSearchResults([]);
-      setShowDropdown(false);
+      // re-run search immediately for new field
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      debouncedSearch(searchValue, e.target.value);
     }
   };
 
@@ -156,12 +169,48 @@ export function AutocompleteSearchBar({
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
+    // notify parent that search was cleared
+    onSubmit && onSubmit("");
+  };
+
+  const buildQueryFromValue = (fieldValue: string, val: string) => {
+    const selectedFieldObj = searchFields.find(f => f.value === fieldValue) || searchFields[0];
+    const operator = getDefaultOperator(selectedFieldObj!);
+    return `${fieldValue}${operator}${val}`;
   };
 
   const handleResultClick = (result: SearchResult) => {
-    // For now, just close dropdown - user said they don't need click handling yet
+    // call parent select
+    onSelect && onSelect(result);
+
+    // optionally also submit constructed query
+    const chosenVal = result.value ?? result.name ?? result.displayText ?? result.id ?? "";
+    if (submitOnSelect && onSubmit) {
+      const q = buildQueryFromValue(selectedField, String(chosenVal));
+      onSubmit(q);
+    }
+
     setShowDropdown(false);
-    console.log("Selected result:", result);
+  };
+
+  // handle Enter key submit
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const trimmed = searchValue.trim();
+      if (!trimmed) {
+        // empty -> treat as clear
+        onSubmit && onSubmit("");
+        setShowDropdown(false);
+        return;
+      }
+      const q = buildQueryFromValue(selectedField, trimmed);
+      onSubmit && onSubmit(q);
+      setShowDropdown(false);
+    }
+    if (e.key === 'Escape') {
+      setShowDropdown(false);
+    }
   };
 
   const selectedFieldObj = searchFields.find(field => field.value === selectedField);
@@ -189,6 +238,7 @@ export function AutocompleteSearchBar({
             type={selectedFieldType}
             value={searchValue}
             onChange={handleSearchChange}
+            onKeyDown={handleKeyDown}
             placeholder={placeholder}
           />
 
@@ -232,7 +282,7 @@ export function AutocompleteSearchBar({
           )}
         </div>
 
-        {searchValue && (
+        {searchValue ? (
           <button
             onClick={handleClear}
             className="mb-2 px-3 py-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -242,7 +292,7 @@ export function AutocompleteSearchBar({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-        )}
+        ) : null}
       </div>
 
       {searchValue && (
@@ -262,3 +312,5 @@ export function AutocompleteSearchBar({
     </div>
   );
 }
+
+export default AutocompleteSearchBar;

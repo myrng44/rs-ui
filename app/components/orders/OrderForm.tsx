@@ -104,7 +104,7 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
 
   const validate = () => {
     const e: Record<string,string> = {};
-    if (!formData.storeId) e.storeId = 'Vui lòng chọn cửa hàng';
+    // if (!formData.storeId) e.storeId = 'Vui lòng chọn cửa hàng';
     if (!formData.paymentId) e.paymentId = 'Vui lòng chọn phương thức thanh toán';
     if (lines.length === 0) e.lines = 'Vui lòng thêm ít nhất 1 sản phẩm';
     for (const [i, l] of lines.entries()) {
@@ -113,7 +113,7 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
     }
 
     // existence checks
-    if (formData.storeId && !stores.find(s => s.value === formData.storeId)) e.storeId = 'Cửa hàng không hợp lệ';
+    // if (formData.storeId && !stores.find(s => s.value === formData.storeId)) e.storeId = 'Cửa hàng không hợp lệ';
     if (formData.paymentId && !paymentMethods.find(pm => pm.value === formData.paymentId)) e.paymentId = 'Phương thức thanh toán không hợp lệ';
     for (const l of lines) if (l.productId && !availableProducts.find(p => p.value === l.productId)) { e.lines = `Sản phẩm không hợp lệ: ${l.productName || l.productId}`; break; }
 
@@ -169,7 +169,7 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Mã khách hàng" value={formData.customerId} onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))} placeholder="Nhập mã khách hàng" />
-            <Dropdown label="Cửa hàng" value={formData.storeId} onChange={(e) => setFormData(prev => ({ ...prev, storeId: e.target.value }))} options={[{ value: '', label: 'Chọn cửa hàng' }, ...stores]} required error={errors.storeId} />
+            {/* <Dropdown label="Cửa hàng" value={formData.storeId} onChange={(e) => setFormData(prev => ({ ...prev, storeId: e.target.value }))} options={[{ value: '', label: 'Chọn cửa hàng' }, ...stores]} required error={errors.storeId} /> */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

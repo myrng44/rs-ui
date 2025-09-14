@@ -15,8 +15,7 @@ const menuItems = [
   { path: "/suppliers", label: "Nhà cung cấp", icon: "🏭" },
   { path: "/stores", label: "Cửa hàng", icon: "🏪" },
   { path: "/stock", label: "Kho", icon: "📋" },
-  { path: "/vouchers", label: "Mã giảm giá", icon: "🎫" },
-  { path: "/payments", label: "Thanh toán", icon: "💳" },
+  { path: "/vouchers", label: "Mã giảm giá", icon: "🎫" }
 ];
 
 export function Sidebar({ className = "", isCollapsed, setIsCollapsed }: SidebarProps) {

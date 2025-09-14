@@ -1,0 +1,6 @@
+id,code,name,created_at,created_by,updated_at,updated_by,deleted
+1,CASH,Tiền mặt,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False
+2,CARD,Thẻ ngân hàng,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False
+3,MOMO,Ví MoMo,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False
+4,VNPAY,VNPay,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False
+5,BANK,Chuyển khoản,2020-10-10 13:55:04,1,2025-08-15 13:55:04,1,False

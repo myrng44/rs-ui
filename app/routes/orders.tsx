@@ -9,7 +9,7 @@ import OrderForm from '../components/orders/OrderForm';
 import { useOrders } from '../hooks/userOrders';
 import { ordersApi, paymentMethodApi, storesApi } from '~/utils/api';
 import { Layout } from '~/components/Layout';
-import { AutocompleteSearchBar, type SearchField, type SearchResult } from '~/components/AutoCompleteSearchBar';
+import AutocompleteSearchBar, { type SearchField, type SearchResult } from '~/components/AutoCompleteSearchBar';
 
 interface FilterValues {
   paymentMethod: string;
@@ -28,7 +28,7 @@ const OrdersPage: React.FC = () => {
   // searchQuery uses the same format AutocompleteSearchBar builds (e.g. "customerId:123" or "finalPrice>:100000")
   const [searchQuery, setSearchQuery] = useState('');
   // default sort: newest first by creation time
-  const [sortBy, setSortBy] = useState('-createdTime');
+  const [sortBy, setSortBy] = useState('-createdAt');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
@@ -66,23 +66,25 @@ const OrdersPage: React.FC = () => {
   });
 
   const ordersSearchFields: SearchField[] = [
-    // { value: 'orderCode', label: 'Mã đơn', type: 'text', operator: ':' },
     { value: 'customerId', label: 'Mã khách hàng', type: 'text', operator: ':' },
-    // { value: 'name', label: 'Tên khách hàng', type: 'text', operator: '~' },
-    // { value: 'storeId', label: 'Mã cửa hàng', type: 'text', operator: ':' },
-    // { value: 'voucherId', label: 'Mã voucher', type: 'text', operator: ':' },
     { value: 'finalPrice', label: 'Giá cuối', type: 'number', operator: ':' }
   ];
 
+  // onSearch should ONLY return suggestions (do not modify searchQuery here)
   const handleAutocompleteSearch = useCallback(async (query: string): Promise<SearchResult[]> => {
     try {
-      setSearchQuery(query);
-      setCurrentPage(1);
       return (await ordersApi.search(query)) as any;
     } catch (err) {
       console.error('Autocomplete search error:', err);
       return [];
     }
+  }, []);
+
+  // Called when user submits a query (Enter) or selects a suggestion (component's submitOnSelect=true by default)
+  // query is raw like "customerId:123" or "" to clear
+  const handleSearchSubmit = useCallback((query: string) => {
+    setSearchQuery(query || '');
+    setCurrentPage(1);
   }, []);
 
   // Load payment methods and stores for filters
@@ -104,23 +106,21 @@ const OrdersPage: React.FC = () => {
     })();
   }, []);
 
-  // Keep data fresh whenever key parameters change
   useEffect(() => {
-    // trigger refetch when search/sort/filters/page changes
     refetch();
   }, [searchQuery, sortBy, filters, currentPage, itemsPerPage, refetch]);
 
   const handleSort = useCallback((field: string) => {
-    // toggle logic: if currently sorting by `field`, toggle between asc/desc
     if (sortBy === field) {
       setSortBy(`-${field}`);
     } else if (sortBy === `-${field}`) {
       setSortBy(field);
     } else {
-      setSortBy(field);
+      setSortBy(`-${field}`);
     }
     setCurrentPage(1);
   }, [sortBy]);
+
 
   const handleDelete = useCallback(async (orderId: string) => {
     try {
@@ -203,18 +203,19 @@ const OrdersPage: React.FC = () => {
                 <AutocompleteSearchBar
                   searchFields={ordersSearchFields}
                   onSearch={handleAutocompleteSearch}
-                  placeholder="Tìm kiếm theo mã khách hàng"
+                  onSubmit={handleSearchSubmit}
+                  placeholder="Tìm kiếm theo mã khách hàng hoặc giá..."
                 />
           </div>
               <div className="flex gap-2">
-                <Button
+                {/* <Button
                   variant="outline"
                   onClick={() => setShowFilters(!showFilters)}
                   className={`flex items-center gap-2 ${showFilters ? 'bg-blue-50 text-blue-700 border-blue-300' : ''}`}
                 >
                   <Filter className="h-4 w-4" />
                   Bộ lọc
-                </Button>
+                </Button> */}
                 <Button className="flex items-center gap-2" onClick={() => setShowCreateModal(true)}>
                   <Plus className="h-4 w-4" />
                   Tạo đơn hàng
@@ -223,14 +224,14 @@ const OrdersPage: React.FC = () => {
         </div>
 
             {/* Filters Panel */}
-            {showFilters && (
+            {/* {showFilters && (
               <OrdersFilters
                 filters={filters}
                 onFiltersChange={handleFiltersChange}
                 paymentMethods={paymentMethods}
                 stores={stores}
               />
-            )}
+            )} */}
           </div>
 
           {/* Statistics Summary */}

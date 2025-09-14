@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import { Eye, Edit, Trash2, Pencil } from 'lucide-react';
 import { Button } from '../Button';
 
 interface Order {
@@ -98,7 +98,7 @@ const OrdersTable: React.FC<Props> = ({ orders, loading, sortBy, onSort, onViewD
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <Button variant="ghost" size="sm" onClick={() => onViewDetail(order)} className="text-blue-600 hover:text-blue-900 hover:bg-blue-50"><Eye className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => onEdit(order)} className="text-amber-600 hover:text-amber-900 hover:bg-amber-50"><Edit className="h-4 w-4" /></Button>
+                        {/* <Button variant="ghost" size="sm" onClick={() => onEdit(order)} className="text-amber-600 hover:text-amber-900 hover:bg-amber-50"><Pencil className="h-4 w-4" /></Button> */}
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(order.id)} className="text-red-600 hover:text-red-900 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </td>
