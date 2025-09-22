@@ -1,9 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '~/components/Layout';
-import { Button } from '~/components/Button';
-import { Modal } from '~/components/Modal';
 import { DataTable } from '~/components/DataTable';
-import { OrderFormWithProducts, type OrderProduct } from '~/components/OrderFormWithProducts';
 import { Pagination } from '~/components/Pagination';
 import { OrderDetailsModal } from '~/components/OrderDetailsModal';
 import { ordersApi } from '~/utils/api';
@@ -17,15 +14,6 @@ interface Order {
   finalPrice: number;
   note: string | null;
   paymentMethodName: string;
-  saleLines?: Array<{
-    id: string;
-    saleOrderId: string;
-    productId: string;
-    productName: string;
-    qtyOrdered: number;
-    unitPrice: number;
-    totalPrice: number;
-  }>;
 }
 
 export default function Orders() {
@@ -36,33 +24,50 @@ export default function Orders() {
   const [totalElements, setTotalElements] = useState(0);
   const [itemsPerPage] = useState(10);
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    customerId: '',
-    storeId: '',
-    voucherCode: '',
-    note: '',
-    paymentId: '',
-  });
-  const [orderProducts, setOrderProducts] = useState<OrderProduct[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchId, setSearchId] = useState('');
 
   useEffect(() => {
     loadOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+      loadOrders(1);
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchId]);
+
+  const looksLikeId = (s: string) => s && s.length > 10 && /[0-9a-fA-F\-]{8,}/.test(s);
 
   const loadOrders = async (page: number = currentPage) => {
     try {
       setLoading(true);
+      // if user typed a full id, call getById to return exact match
+      if (searchId && looksLikeId(searchId)) {
+        try {
+          const order = await ordersApi.getById(searchId);
+          setOrders([order]);
+          setTotalElements(1);
+          setError('');
+          return;
+        } catch (err) {
+          // fall back to normal list search if getById fails
+          console.warn('getById failed, falling back to list search', err);
+        }
+      }
+
       const offset = (page - 1) * itemsPerPage;
+      const query = searchId ? `id~${searchId}` : undefined;
       const response = await ordersApi.getAll({
         offset,
         limit: itemsPerPage,
         sort: '-createdTime, +finalPrice',
+        query,
       });
       setOrders(response.elements);
       setTotalElements(response.totalElements);
@@ -80,169 +85,9 @@ export default function Orders() {
     loadOrders(page);
   };
 
-  const handleFormChange = useCallback((field: keyof typeof formData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  }, []);
-
-  const resetForm = () => {
-    setFormData({
-      customerId: '',
-      storeId: '',
-      voucherCode: '',
-      note: '',
-      paymentId: '',
-    });
-  };
-
-  const handleAdd = async () => {
-    try {
-      setIsSubmitting(true);
-      setError('');
-
-      /**
-       * validate
-       */
-      if (!formData.paymentId) {
-        setError('Vui lòng điền đầy đủ thông tin bắt buộc');
-        return;
-      }
-
-      if (orderProducts.length === 0) {
-        setError('Vui lòng thêm ít nhất một sản phẩm');
-        return;
-      }
-
-      /**
-       * Validate cac rang buoc cua product
-       */
-      for (const product of orderProducts) {
-        if (!product.productId || product.quantity < 1) {
-          setError('Vui lòng chọn sản phẩm và nhập số lượng hợp lệ');
-          return;
-        }
-      }
-
-      /**
-       * Create order with products included
-       */
-      await ordersApi.create({
-        customerId: formData.customerId || undefined,
-        note: formData.note || undefined,
-        voucherCode: formData.voucherCode || undefined,
-        paymentId: formData.paymentId,
-        lines: orderProducts.map(p => ({ productId: p.productId, qtyOrdered: p.quantity })),
-      });
-
-
-      setIsAddModalOpen(false);
-      resetForm();
-      loadOrders(currentPage);
-    } catch (err: any) {
-      setError('Không thể thêm đơn hàng');
-      console.error('Error adding order:', err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleViewDetails = (orderId: string) => {
     setSelectedOrderId(orderId);
     setIsDetailsModalOpen(true);
-  };
-
-  const handleEdit = async (order: Order) => {
-    try {
-      setEditingOrder(order);
-      setFormData({
-        customerId: order.customerId || '',
-        storeId: order.storeId.toString(),
-        voucherCode: order.voucherCode || '',
-        note: order.note || '',
-        paymentId: order.paymentMethodName,
-      });
-
-      // Get order details with saleLines included
-      const orderDetails = await ordersApi.getById(order.id);
-      const products: OrderProduct[] = (orderDetails.saleLines || []).map((saleLine, index) => ({
-        id: `${saleLine.id}_${index}`,
-        productId: saleLine.productId,
-        productName: saleLine.productName,
-        quantity: saleLine.qtyOrdered,
-      }));
-      setOrderProducts(products);
-
-      setIsEditModalOpen(true);
-    } catch (err) {
-      console.error('Error loading order details:', err);
-      setError('Không thể tải chi tiết đơn hàng');
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!editingOrder) return;
-
-    try {
-      setIsSubmitting(true);
-      setError('');
-
-      //validate form data
-      if (!formData.paymentId) {
-        setError('Vui lòng điền đầy đủ thông tin bắt buộc');
-        return;
-      }
-
-      if (orderProducts.length === 0) {
-        setError('Vui lòng thêm ít nhất một sản phẩm');
-        return;
-      }
-
-      //validate products
-      for (const product of orderProducts) {
-        if (!product.productId || product.quantity < 1) {
-          setError('Vui lòng chọn sản phẩm và nhập số lượng hợp lệ');
-          return;
-        }
-      }
-
-      //update order first
-      await ordersApi.update(editingOrder.id, {
-        customerId: formData.customerId,
-        storeId: formData.storeId,
-        voucherId: formData.voucherCode || '',
-        note: formData.note || '',
-        paymentId: formData.paymentId,
-      });
-
-      //!note:not updating order details in edit mode
-      console.warn('Order details update not implemented in edit mode');
-
-      setIsEditModalOpen(false);
-      setEditingOrder(null);
-      resetForm();
-      loadOrders(currentPage);
-    } catch (err: any) {
-      setError('Không thể cập nhật đơn hàng');
-      console.error('Error updating order:', err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa đơn hàng này?')) {
-      try {
-        setError('');
-        await ordersApi.delete(id);
-        const newTotal = totalElements - 1;
-        const maxPage = Math.ceil(newTotal / itemsPerPage);
-        const targetPage = currentPage > maxPage ? Math.max(1, maxPage) : currentPage;
-        setCurrentPage(targetPage);
-        loadOrders(targetPage);
-      } catch (err: any) {
-        setError('Không thể xóa đơn hàng');
-        console.error('Error deleting order:', err);
-      }
-    }
   };
 
   const formatPrice = (price: number) => {
@@ -257,12 +102,39 @@ export default function Orders() {
       <div className='space-y-6'>
         <div className='flex justify-between items-center'>
           <div>
-            <h1 className='text-2xl font-bold text-gray-900'>Quản lý Đơn hàng</h1>
-            <p className='text-gray-600'>Theo dõi và xử lý đơn hàng</p>
+            <h1 className='text-2xl font-bold text-gray-900'>Đơn hàng</h1>
+            <p className='text-gray-600'>Xem danh sách và chi tiết đơn hàng</p>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)} disabled={loading}>
-            Tạo mới đơn hàng
-          </Button>
+          <div className='w-full max-w-xs'>
+            <div className='relative'>
+              <input
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setCurrentPage(1);
+                    loadOrders(1);
+                  }
+                }}
+                placeholder='Tìm theo mã đơn hàng...'
+                aria-label='Tìm theo mã đơn hàng'
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent hover:border-gray-400 hover:shadow-md'
+              />
+
+              {searchId ? (
+                <button
+                  type='button'
+                  aria-label='Clear search'
+                  onClick={() => setSearchId('')}
+                  className='absolute right-0 top-1/2 -translate-y-1/2 mr-3 text-gray-500 hover:text-gray-700'
+                >
+                  ✖
+                </button>
+              ) : (
+                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400'>🔎</span>
+              )}
+            </div>
+          </div>
         </div>
 
         {error && <div className='bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg'>{error}</div>}
@@ -272,63 +144,23 @@ export default function Orders() {
           columns={[
             {
               key: 'id',
-              label: 'ID',
+              label: 'Mã đơn',
               render: (value, order) => (
                 <button
                   onClick={() => handleViewDetails(order.id)}
-                  className='text-primary hover:text-primary-dark hover:underline cursor-pointer font-medium text-sm'
+                  className='text-primary hover:underline cursor-pointer font-medium text-sm'
                 >
                   {value}
                 </button>
               ),
             },
-            {
-              key: 'customerId',
-              label: 'Mã Khách hàng',
-              render: (value) => <span className='text-gray-900'>{value}</span>,
-            },
-            {
-              key: 'storeId',
-              label: 'Cửa hàng',
-              render: (value) => <span className='text-gray-900'>{value}</span>,
-            },
-            {
-              key: 'customerName',
-              label: 'Tên khách hàng',
-              render: (value) => <span className='text-gray-900'>{value}</span>,
-            },
-            {
-              key: 'voucherCode',
-              label: 'Voucher',
-              render: (value) => <span className='text-gray-600'>{value || 'Không có'}</span>,
-            },
-            {
-              key: 'paymentMethodName',
-              label: 'Phương thức thanh toán',
-              render: (value) => <span className='text-gray-900'>{value}</span>,
-            },
-            {
-              key: 'note',
-              label: 'Ghi chú',
-              render: (value) => <span className='text-gray-600 max-w-xs truncate block'>{value}</span>,
-            },
-            {
-              key: 'finalPrice',
-              label: 'Tổng tiền',
-              render: (value) => <span className='text-gray-900 font-medium'>{formatPrice(value)}</span>,
-            },
-          ]}
-          actions={[
-            {
-              label: 'Sửa',
-              variant: 'outline',
-              onClick: handleEdit,
-            },
-            {
-              label: 'Xóa',
-              variant: 'danger',
-              onClick: (order) => handleDelete(order.id),
-            },
+            { key: 'customerId', label: 'Mã Khách hàng', render: (value) => <span className='text-gray-900'>{value}</span> },
+            { key: 'storeId', label: 'Cửa hàng', render: (value) => <span className='text-gray-900'>{value}</span> },
+            { key: 'customerName', label: 'Tên khách hàng', render: (value) => <span className='text-gray-900'>{value}</span> },
+            { key: 'voucherCode', label: 'Voucher', render: (value) => <span className='text-gray-600'>{value || 'Không có'}</span> },
+            { key: 'paymentMethodName', label: 'Thanh toán', render: (value) => <span className='text-gray-900'>{value}</span> },
+            { key: 'note', label: 'Ghi chú', render: (value) => <span className='text-gray-600 max-w-xs truncate block'>{value}</span> },
+            { key: 'finalPrice', label: 'Tổng tiền', render: (value) => <span className='text-gray-900 font-medium'>{formatPrice(value)}</span> },
           ]}
           loading={loading}
           emptyMessage='Chưa có đơn hàng nào'
@@ -345,78 +177,6 @@ export default function Orders() {
           />
         )}
 
-        {/* Add Modal */}
-        <Modal
-          isOpen={isAddModalOpen}
-          onClose={() => {
-            setIsAddModalOpen(false);
-            resetForm();
-          }}
-          title='Thêm đơn hàng mới'
-          size='3xl'
-          footer={
-            <>
-              <Button
-                variant='outline'
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  resetForm();
-                }}
-              >
-                Hủy
-              </Button>
-              <Button onClick={handleAdd} disabled={isSubmitting}>
-                {isSubmitting ? 'Đang thêm...' : 'Thêm'}
-              </Button>
-            </>
-          }
-        >
-          <OrderFormWithProducts
-            formData={formData}
-            products={orderProducts}
-            onChange={handleFormChange}
-            onProductsChange={setOrderProducts}
-          />
-        </Modal>
-
-        {/* Edit Modal */}
-        <Modal
-          isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setEditingOrder(null);
-            resetForm();
-          }}
-          title='Chỉnh sửa đơn hàng'
-          footer={
-            <>
-              <Button
-                variant='outline'
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingOrder(null);
-                  resetForm();
-                }}
-              >
-                Hủy
-              </Button>
-              <Button onClick={handleUpdate} disabled={isSubmitting}>
-                {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật'}
-              </Button>
-            </>
-          }
-        >
-          <OrderFormWithProducts
-            formData={formData}
-            products={orderProducts}
-            onChange={handleFormChange}
-            onProductsChange={setOrderProducts}
-            readonlyField={['customerId', 'storeId', 'note', 'paymentId', 'voucherCode']}
-          />
-
-        </Modal>
-
-        {/* Order Details Modal */}
         <OrderDetailsModal
           isOpen={isDetailsModalOpen}
           onClose={() => {

@@ -5,6 +5,8 @@ import './app.css';
 import { AuthProvider } from './contexts/authContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useLocation } from 'react-router';
+import { ThemeProvider } from './contexts/themeContext';
+import { SettingsProvider } from './contexts/settingsContext';
 
 export const links: LinksFunction = () => [
 	{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -44,13 +46,17 @@ export default function App() {
 
 	return (
 		<AuthProvider>
-			{isLoginPage ? (
-				<Outlet />
-			) : (
-				<ProtectedRoute>
-					<Outlet />
-				</ProtectedRoute>
-			)}
+      <ThemeProvider>
+        <SettingsProvider>
+          {isLoginPage ? (
+            <Outlet />
+          ) : (
+            <ProtectedRoute>
+              <Outlet />
+            </ProtectedRoute>
+          )}
+        </SettingsProvider>
+      </ThemeProvider>
 		</AuthProvider>
 	);
 }

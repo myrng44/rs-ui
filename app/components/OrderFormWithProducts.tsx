@@ -96,7 +96,7 @@ export function OrderFormWithProducts({
 
   const addProduct = () => {
     const newProduct: OrderProduct = {
-      id: '',
+      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
       productId: '',
       productName: '',
       quantity: 1,
@@ -191,11 +191,11 @@ export function OrderFormWithProducts({
         ) : (
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             {products.map((product, index) => (
-              <div key={product.id} className='grid md:grid-cols-12 items-end gap-3 p-4 bg-gray-50 rounded-lg'>
+              <div key={product.id} className='grid md:grid-cols-12 items-center gap-3 p-4 bg-gray-50 rounded-lg'>
                 <div className='md:col-span-9'>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Sản phẩm {index + 1}</label>
                   <Dropdown
-                    label={`Sản phẩm ${index + 1}`}
+                    label={''}
                     value={product.productId}
                     onChange={(e) => updateProduct(product.id, 'productId', e.target.value)}
                     options={[
@@ -213,9 +213,10 @@ export function OrderFormWithProducts({
                     onChange={(e) => updateProduct(product.id, 'quantity', parseInt(e.target.value) || 1)}
                     placeholder='Số lượng'
                     min='1'
+                    className='w-full'
                   />
                 </div>
-                <div className='md:col-span-1 flex md:justify-end'>
+                <div className='md:col-span-1 flex md:justify-end md:items-center'>
                   <Button
                     variant='danger'
                     size='sm'

@@ -89,7 +89,7 @@ export const productsApi = {
       id: string;
       sku: string;
       name: string;
-      desc: string;
+      description: string;
       unitPrice: number;
       categoryId: string;
     }>>(endpoint);
@@ -105,7 +105,7 @@ export const productsApi = {
       id: string;
       sku: string;
       name: string;
-      desc: string;
+      description: string;
       unitPrice: number;
       categoryId: string;
     }>(`/secured/rest/v1/products/${id}`);
@@ -124,7 +124,7 @@ export const productsApi = {
       id: string;
       sku: string;
       name: string;
-      desc: string;
+      description: string;
       unitPrice: number;
       categoryId: string;
     }>('/secured/rest/v1/products', {
@@ -132,7 +132,7 @@ export const productsApi = {
       body: JSON.stringify({
         sku: product.sku,
         name: product.name,
-        desc: product.description,
+        description: product.description,
         unitPrice: product.unitPrice,
         categoryId: product.categoryId,
       }),
@@ -155,7 +155,7 @@ export const productsApi = {
       id: string;
       sku: string;
       name: string;
-      desc: string;
+      description: string;
       unitPrice: number;
       categoryId: string;
     }>(`/secured/rest/v1/products/${id}`, {
@@ -163,7 +163,7 @@ export const productsApi = {
       body: JSON.stringify({
         sku: product.sku,
         name: product.name,
-        desc: product.description,
+        description: product.description,
         unitPrice: product.unitPrice,
         categoryId: product.categoryId
       }),
@@ -206,14 +206,14 @@ export const productsApi = {
       id: string;
       sku: string;
       name: string;
-      desc: string;
+      description: string;
       unitPrice: number;
       categoryId: string;
     }>>(endpoint);
 
     return response.body.map(product => ({
       ...product,
-      description: product.desc,
+      description: product.description,
       displayText: `${product.name} (${product.sku})`,
     }));
   },
@@ -521,7 +521,7 @@ export const statsApi = {
       id: string;
       sku: string;
       name: string;
-      desc: string;
+      description: string;
       unitPrice: number;
       categoryId: string;
       totalQuantitySold: number;
@@ -804,7 +804,7 @@ export const voucherApi = {
     const response = await apiCallWithResponse<Array<{
       id: string;
       code: string;
-      desc: string | null;
+      description: string | null;
       discountPer: number | null;
       discountVal: number | null;
       validFrom: string;
@@ -818,7 +818,7 @@ export const voucherApi = {
     const elements = response.body.map(v => ({
       id: v.id,
       code: v.code,
-      description: v.desc ?? '',
+      description: v.description ?? '',
       discountPercent: v.discountPer ?? 0,
       discountValue: v.discountVal ?? 0,
       startTime: v.validFrom,
@@ -835,7 +835,7 @@ export const voucherApi = {
     const response = await apiCallWithResponse<{
       id: string;
       code: string;
-      desc: string | null;
+      description: string | null;
       discountPer: number | null;
       discountVal: number | null;
       validFrom: string;
@@ -851,7 +851,7 @@ export const voucherApi = {
     return {
       id: v.id,
       code: v.code,
-      description: v.desc ?? '',
+      description: v.description ?? '',
       discountPercent: v.discountPer ?? 0,
       discountValue: v.discountVal ?? 0,
       startTime: v.validFrom,
