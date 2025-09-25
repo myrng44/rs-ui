@@ -525,27 +525,27 @@ export const dashboardApi = {
     return response.data;
   },
 
-getTopProducts: async (days: number = 30, noProducts: number = 4) => {
-  const searchParams = new URLSearchParams();
-  searchParams.append('days', days.toString());
-  searchParams.append('noProducts', noProducts.toString());
+  getTopProducts: async (days: number = 30, noProducts: number = 4) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('days', days.toString());
+    searchParams.append('noProducts', noProducts.toString());
 
-  const endpoint = `/secured/rest/v1/orders/most?${searchParams.toString()}`;
+    const endpoint = `/secured/rest/v1/orders/most?${searchParams.toString()}`;
 
-  const response = await apiCallWithResponse<
-    Array<{
-      id: string;
-      sku: string;
-      name: string;
-      description: string;
-      unitPrice: number;
-      categoryId: number;
-      totalQuantitySold: number;
-    }>
-  >(endpoint);
+    const response = await apiCallWithResponse<
+      Array<{
+        id: string;
+        sku: string;
+        name: string;
+        description: string;
+        unitPrice: number;
+        categoryId: number;
+        totalQuantitySold: number;
+      }>
+    >(endpoint);
 
-  return response.data;
-},
+    return response.data;
+  },
 }
 
 
@@ -1332,4 +1332,22 @@ export const storesApi = {
       displayText: `${s.name}${s.phone ? ` — ${s.phone}` : ''}`,
     }));
   },
+
+  getAllStoresRevenueSeries: async (days: number = 30) => {
+    const endpoint = `/secured/rest/v1/store/revenue/all?days=${days}`;
+    const response = await apiCallWithResponse<{
+      stores: Array<{
+        storeId: number | string;
+        storeName: string;
+        series: Array<{ date: string; revenue: number }>;
+      }>;
+      dayTotal?: number;
+      weekTotal?: number;
+      monthTotal?: number;
+      from?: string;
+      to?: string;
+    }>(endpoint);
+    return response.data;
+  },
+
 };

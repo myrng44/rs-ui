@@ -9,6 +9,7 @@ interface SidebarProps {
 
 const menuItems = [
   { path: "/dashboard", label: "Dashboard", icon: "📊" },
+  { path: "/statistics", label: "Thống kê", icon: "📈" },
   { path: "/products", label: "Sản phẩm", icon: "📦" },
   { path: "/categories", label: "Danh mục", icon: "📂" },
   { path: "/orders", label: "Đơn hàng", icon: "🛒" },

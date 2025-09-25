@@ -25,10 +25,8 @@ interface PaymentMethod {
 }
 
 const OrdersPage: React.FC = () => {
-  // searchQuery uses the same format AutocompleteSearchBar builds (e.g. "customerId:123" or "finalPrice>:100000")
   const [searchQuery, setSearchQuery] = useState('');
-  // default sort: newest first by creation time
-  const [sortBy, setSortBy] = useState('-createdAt');
+  const [sortBy, setSortBy] = useState('-createdTime');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
@@ -184,15 +182,6 @@ const OrdersPage: React.FC = () => {
                 <p className="mt-2 text-gray-600">Quản lý và theo dõi tất cả đơn hàng trong hệ thống</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  Làm mới
-                </Button>
               </div>
             </div>
           </div>

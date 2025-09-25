@@ -11,6 +11,13 @@ const features = [
     btn: "Xem Dashboard",
   },
   {
+    icon: "📈",
+    title: "Thống kê",
+    desc: "Phân tích doanh thu và hiệu suất",
+    link: "/statistics",
+    btn: "Xem Thống kê",
+  },
+  {
     icon: "📦",
     title: "Quản lý Sản phẩm",
     desc: "Thêm, sửa, xóa và quản lý sản phẩm",
