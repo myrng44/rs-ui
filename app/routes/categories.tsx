@@ -6,7 +6,7 @@ import { Pagination } from '~/components/Pagination';
 import { Modal } from '~/components/Modal';
 import { CategoryForm } from '~/components/CategoryForm';
 import { DataTable } from '~/components/DataTable';
-import { AutocompleteSearchBar } from '~/components/AutoCompleteSearchBar';
+import { FilterPanel } from '~/components/FilterPanel';
 
 interface Category {
   id: string;
@@ -31,39 +31,21 @@ export default function Categories() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [searchText, setSearchText] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-
-  const categorySearchFields: import('~/components/AutoCompleteSearchBar').SearchField[] = [
-    { value: 'name', label: 'Tên danh mục', type: 'text', operator: '~' },
-    { value: 'description', label: 'Mô tả', type: 'text', operator: '~' },
-  ];
-
-  const handleAutocompleteSearch = async (query: string) => {
-    return await categoryApi.search(query);
-  };
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('-createdTime');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
     loadCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setCurrentPage(1);
-      loadCategories(1);
-    }, 400);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText]);
-
   const loadCategories = async (page: number = currentPage) => {
     try {
       setLoading(true);
       const offset = (page - 1) * itemsPerPage;
-      const sort = '-createdTime';
-      const query = searchText ? `name~${searchText}` : undefined;
-      const response = await categoryApi.getAll({ offset, limit: itemsPerPage, sort, query });
+      const query = searchQuery ? `name~${searchQuery}` : undefined;
+      const response = await categoryApi.getAll({ offset, limit: itemsPerPage, sort: sortBy, query });
       setCategories(response.elements);
       setTotalElements(response.totalElements);
       setError('');
@@ -74,6 +56,37 @@ export default function Categories() {
       setLoading(false);
     }
   };
+
+  const filterGroups = [
+    {
+      key: 'search',
+      label: 'Tìm kiếm',
+      type: 'search' as const,
+      value: searchQuery,
+      placeholder: 'Tìm theo tên danh mục, mô tả...',
+    },
+  ];
+
+  const handleFilterChange = (key: string, value: any) => {
+    if (key === 'search') {
+      setSearchQuery(value);
+    }
+  };
+
+  const applyFilters = () => {
+    setCurrentPage(1);
+    loadCategories(1);
+    setIsFilterOpen(false);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSortBy('-createdTime');
+    setCurrentPage(1);
+    loadCategories(1);
+  };
+
+  const activeFiltersCount = [searchQuery].filter(Boolean).length;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -179,34 +192,95 @@ export default function Categories() {
             <h1 className='text-2xl font-bold text-gray-900'>Quản lý Danh Mục</h1>
             <p className='text-gray-600'>Thêm, sửa, xóa và quản lý danh mục</p>
           </div>
-          <div className='flex items-center gap-2 relative'>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className='p-2 rounded-md hover:bg-gray-50 transition-colors'
-              title='Bộ lọc'
-            >
-              <svg className='w-5 h-5 text-gray-600' viewBox='0 0 24 24' fill='none' stroke='currentColor'>
-                <path strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' d='M4 6h16M6 12h12M10 18h4' />
+
+          <div className='flex items-center gap-3'>
+            {/* Quick search */}
+            <div className='relative'>
+              <input
+                type='text'
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                placeholder='Tìm kiếm danh mục...'
+                className='w-64 px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+              />
+              <svg className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
               </svg>
-            </button>
-
-            {showFilters && (
-              <div className='absolute right-0 top-full mt-2 z-50 w-80 md:w-[32rem]'>
-                <AutocompleteSearchBar
-                  searchFields={categorySearchFields}
-                  onSearch={(q) => { setSearchText(q); return handleAutocompleteSearch(q); }}
-                  placeholder='Tìm kiếm danh mục...'
-                />
-              </div>
-            )}
-
-            <div className='flex rounded-lg border border-gray-300 overflow-hidden'>
-              <button onClick={() => setViewMode('list')} className={`px-3 py-2 text-sm ${viewMode === 'list' ? 'bg-primary text-on-primary' : 'hover:bg-gray-50 text-gray-700'}`} title='Chế độ danh sách'>⋮</button>
-              <button onClick={() => setViewMode('grid')} className={`px-3 py-2 text-sm ${viewMode === 'grid' ? 'bg-primary text-on-primary' : 'hover:bg-gray-50 text-gray-700'}`} title='Chế độ lưới'>⬚</button>
             </div>
-            <Button onClick={() => setIsAddModalOpen(true)} disabled={loading}>Thêm danh mục mới</Button>
+
+            {/* Sort dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className='px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary'
+            >
+              <option value='-createdTime'>Mới nhất</option>
+              <option value='+name'>Tên A-Z</option>
+              <option value='-name'>Tên Z-A</option>
+            </select>
+
+            {/* View mode toggle */}
+            <div className='flex rounded-lg border border-gray-300 overflow-hidden'>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-2 text-sm ${viewMode === 'list' ? 'bg-primary text-on-primary' : 'hover:bg-gray-50 text-gray-700'}`}
+                title='Chế độ danh sách'
+              >
+                <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 24 24'>
+                  <path d='M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z' />
+                </svg>
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-2 text-sm ${viewMode === 'grid' ? 'bg-primary text-on-primary' : 'hover:bg-gray-50 text-gray-700'}`}
+                title='Chế độ lưới'
+              >
+                <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 24 24'>
+                  <path d='M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z' />
+                </svg>
+              </button>
+            </div>
+
+            {/* Filter button */}
+            <Button
+              variant='outline'
+              onClick={() => setIsFilterOpen(true)}
+              disabled={loading}
+              className='relative'
+            >
+              <svg className='w-4 h-4 mr-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z' />
+              </svg>
+              Bộ lọc
+              {activeFiltersCount > 0 && (
+                <span className='absolute -top-2 -right-2 bg-primary text-on-primary text-xs rounded-full w-5 h-5 flex items-center justify-center'>
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
+
+            <Button onClick={() => setIsAddModalOpen(true)} disabled={loading} className='btn-gradient'>
+              + Thêm danh mục
+            </Button>
           </div>
         </div>
+
+        {/* Active filters display */}
+        {activeFiltersCount > 0 && (
+          <div className='bg-white p-4 rounded-lg border border-gray-200 flex items-center flex-wrap gap-2'>
+            <span className='text-sm text-gray-600 mr-2'>Bộ lọc đang áp dụng:</span>
+            {searchQuery && (
+              <span className='inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700 border border-blue-200'>
+                Tìm kiếm: "{searchQuery}"
+                <button onClick={() => setSearchQuery('')} className='ml-1 text-blue-500 hover:text-blue-700'>×</button>
+              </span>
+            )}
+            <button onClick={clearFilters} className='ml-auto text-sm text-primary hover:underline font-medium'>
+              Xóa tất cả bộ lọc
+            </button>
+          </div>
+        )}
 
         {error && <div className='bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg'>{error}</div>}
 
@@ -238,6 +312,17 @@ export default function Categories() {
             loading={loading}
           />
         )}
+
+        {/* Filter Panel */}
+        <FilterPanel
+          filters={filterGroups}
+          onFilterChange={handleFilterChange}
+          onApplyFilters={applyFilters}
+          onClearFilters={clearFilters}
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          activeFiltersCount={activeFiltersCount}
+        />
 
         <Modal
           isOpen={isAddModalOpen}

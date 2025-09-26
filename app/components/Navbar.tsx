@@ -50,7 +50,6 @@ export function Navbar() {
   const { user, logout, getHomePath } = useAuth();
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
-
   const handleLogout = () => {
     logout();
     window.location.href = '/login';
@@ -58,33 +57,63 @@ export function Navbar() {
 
   return (
     <nav className='h-16 bg-surface border-b border-gray-200 px-6 flex items-center justify-between shadow-sm fixed top-0 left-0 right-0 z-50 backdrop-blur-sm bg-opacity-95'>
-      <div className='flex items-center space-x-8'>
-        <Link to={getHomePath()} className='text-xl font-bold text-primary hover:text-opacity-80 transition-all duration-200 transform hover:scale-105'>          Store maN
+      {/* Left section - Main Navigation */}
+      <div className='flex items-center space-x-6'>
+        <Link to={getHomePath()} className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50'>
+          Trang chủ
         </Link>
-        <div className='flex items-center space-x-6'>
-          <Link to={getHomePath()} className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50'>            Trang chủ
-          </Link>
-          <Link to='/about' className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50'>
-            Về chúng tôi
-          </Link>
+        <Link to='/about' className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50'>
+          Về chúng tôi
+        </Link>
+        <Link to='/reports' className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50'>
+          Báo cáo
+        </Link>
+        <div className='relative group'>
+          <button className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50 flex items-center space-x-1'>
+            <span>Quản lý</span>
+            <svg className='w-4 h-4 transform group-hover:rotate-180 transition-transform' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+            </svg>
+          </button>
+          <div className='absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20'>
+            <div className='py-1'>
+              <Link to='/products' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors'>Sản phẩm</Link>
+              <Link to='/categories' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors'>Danh mục</Link>
+              <Link to='/orders' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors'>Đơn hàng</Link>
+              <Link to='/customers' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors'>Khách hàng</Link>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Center section - Logo */}
+      <div className='absolute left-1/2 transform -translate-x-1/2'>
+        <Link to={getHomePath()} className='flex items-center space-x-2 text-xl font-bold text-primary hover:text-opacity-80 transition-all duration-200 transform hover:scale-105'>
+          <div className='w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary font-bold text-sm'>
+            SM
+          </div>
+          <span>Store maN</span>
+        </Link>
+      </div>
+
+      {/* Right section - Actions */}
       <div className='flex items-center space-x-4'>
         <Link to='/orders/new'>
-          <Button size='md' className='btn-gradient shadow-lg transform transition-transform duration-200 hover:-translate-y-1 hover:scale-105 rounded-full px-4 py-2 text-sm md:text-base'>Tạo đơn</Button>
+          <Button size='md' className='btn-gradient shadow-lg transform transition-transform duration-200 hover:-translate-y-1 hover:scale-105 rounded-full px-4 py-2 text-sm md:text-base'>
+            Tạo đơn
+          </Button>
         </Link>
-        <button title='Tìm nhanh' className='ml-3 p-2 rounded-md hover:bg-gray-50 transition-colors hidden sm:inline-flex'>
+
+        <button title='Tìm nhanh' className='p-2 rounded-md hover:bg-gray-50 transition-colors hidden sm:inline-flex'>
           <svg className='w-5 h-5 text-gray-600' viewBox='0 0 24 24' fill='none' stroke='currentColor'>
             <path strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' d='M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z' />
           </svg>
         </button>
 
         <div className='flex items-center space-x-3'>
-          <div className='text-sm text-gray-600 hidden sm:block'>{/* current time */}
+          <div className='text-sm text-gray-600 hidden sm:block'>
             <CurrentTime />
           </div>
-
           <NotificationBell />
         </div>
 
@@ -99,7 +128,7 @@ export function Navbar() {
                   {user.fullName?.charAt(0) || user.userName?.charAt(0) || 'U'}
                 </span>
               </div>
-              <div className='text-sm text-left'>
+              <div className='text-sm text-left hidden md:block'>
                 <div className='font-medium text-gray-900'>{user.fullName || user.userName}</div>
                 <div className='text-gray-500'>{user.roleName || 'User'}</div>
               </div>
@@ -116,7 +145,6 @@ export function Navbar() {
             {/* Dropdown Menu */}
             {isUserDropdownOpen && (
               <>
-                {/* Backdrop to close dropdown */}
                 <div
                   className='fixed inset-0 z-10'
                   onClick={() => setIsUserDropdownOpen(false)}

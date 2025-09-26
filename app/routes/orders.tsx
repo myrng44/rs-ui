@@ -5,6 +5,7 @@ import { Pagination } from '~/components/Pagination';
 import { OrderDetailsModal } from '~/components/OrderDetailsModal';
 import { ordersApi } from '~/utils/api';
 import { Button } from '~/components/Button';
+import { FilterPanel } from '~/components/FilterPanel';
 
 interface Order {
   id: string;
@@ -27,47 +28,50 @@ export default function Orders() {
 
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [searchId, setSearchId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('-createdTime');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
   useEffect(() => {
     loadOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setCurrentPage(1);
-      loadOrders(1);
-    }, 400);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchId]);
-
-  const looksLikeId = (s: string) => s && s.length > 10 && /[0-9a-fA-F\-]{8,}/.test(s);
+  const buildFilterQuery = () => {
+    const parts: string[] = [];
+    if (searchQuery) {
+      // Check if it looks like an ID for exact search
+      const looksLikeId = searchQuery.length > 10 && /[0-9a-fA-F\-]{8,}/.test(searchQuery);
+      parts.push(looksLikeId ? `id:${searchQuery}` : `customerName~${searchQuery}`);
+    }
+    return parts.join(' AND ');
+  };
 
   const loadOrders = async (page: number = currentPage) => {
     try {
       setLoading(true);
-      // if user typed a full id, call getById to return exact match
-      if (searchId && looksLikeId(searchId)) {
+      const query = buildFilterQuery();
+
+      // If search looks like an ID, try getById first
+      if (searchQuery && searchQuery.length > 10 && /[0-9a-fA-F\-]{8,}/.test(searchQuery)) {
         try {
-          const order = await ordersApi.getById(searchId);
+          const order = await ordersApi.getById(searchQuery);
           setOrders([order]);
           setTotalElements(1);
           setError('');
           return;
         } catch (err) {
-          // fall back to normal list search if getById fails
           console.warn('getById failed, falling back to list search', err);
         }
       }
 
       const offset = (page - 1) * itemsPerPage;
-      const query = searchId ? `id~${searchId}` : undefined;
       const response = await ordersApi.getAll({
         offset,
         limit: itemsPerPage,
-        sort: '-createdTime, +finalPrice',
+        sort: sortBy,
         query,
       });
       setOrders(response.elements);
@@ -80,6 +84,52 @@ export default function Orders() {
       setLoading(false);
     }
   };
+
+  const filterGroups = [
+    {
+      key: 'search',
+      label: 'Tìm kiếm',
+      type: 'search' as const,
+      value: searchQuery,
+      placeholder: 'Tìm theo mã đơn hàng, tên khách hàng...',
+    },
+    {
+      key: 'dateRange',
+      label: 'Khoảng thời gian',
+      type: 'date' as const,
+      value: dateRange,
+    },
+  ];
+
+  const handleFilterChange = (key: string, value: any) => {
+    switch (key) {
+      case 'search':
+        setSearchQuery(value);
+        break;
+      case 'dateRange':
+        setDateRange(value);
+        break;
+    }
+  };
+
+  const applyFilters = () => {
+    setCurrentPage(1);
+    loadOrders(1);
+    setIsFilterOpen(false);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setDateRange({ from: '', to: '' });
+    setSortBy('-createdTime');
+    setCurrentPage(1);
+    loadOrders(1);
+  };
+
+  const activeFiltersCount = [
+    searchQuery,
+    dateRange.from && dateRange.to,
+  ].filter(Boolean).length;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -106,74 +156,87 @@ export default function Orders() {
             <h1 className='text-2xl font-bold text-gray-900'>Đơn hàng</h1>
             <p className='text-gray-600'>Xem danh sách và chi tiết đơn hàng</p>
           </div>
-          <div className='w-full'>
-            <div className='flex flex-col sm:flex-row sm:items-center sm:space-x-4'>
-              <div className='flex-1'>
-                <div className='relative'>
-                  <input
-                    value={searchId}
-                    onChange={(e) => setSearchId(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        setCurrentPage(1);
-                        loadOrders(1);
-                      }
-                    }}
-                    placeholder='Tìm theo mã đơn hàng...'
-                    aria-label='Tìm theo mã đơn hàng'
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent hover:border-gray-400 hover:shadow-md'
-                  />
 
-                  {searchId ? (
-                    <button
-                      type='button'
-                      aria-label='Clear search'
-                      onClick={() => setSearchId('')}
-                      className='absolute right-0 top-1/2 -translate-y-1/2 mr-3 text-gray-500 hover:text-gray-700'
-                    >
-                      ✖
-                    </button>
-                  ) : (
-                    <span className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400'>🔎</span>
-                  )}
-                </div>
-              </div>
-
-              <div className='mt-3 sm:mt-0 flex items-center space-x-2'>
-                <Button variant='primary' size='md' className=''>Export</Button>
-                <Button variant='primary' size='md' className=''>Create Order</Button>
-              </div>
+          <div className='flex items-center gap-3'>
+            {/* Quick search */}
+            <div className='relative'>
+              <input
+                type='text'
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                placeholder='Tìm đơn hàng...'
+                className='w-64 px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+              />
+              <svg className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
+              </svg>
             </div>
 
-            <div className='mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3'>
-              <div>
-                <label className='block text-sm text-gray-600 mb-1'>Status</label>
-                <select className='w-full p-2 border rounded' value={''} onChange={() => {}}>
-                  <option value=''>All Status</option>
-                </select>
-              </div>
-              <div>
-                <label className='block text-sm text-gray-600 mb-1'>Priority</label>
-                <select className='w-full p-2 border rounded' value={''} onChange={() => {}}>
-                  <option value=''>All Priority</option>
-                </select>
-              </div>
-              <div>
-                <label className='block text-sm text-gray-600 mb-1'>Due</label>
-                <select className='w-full p-2 border rounded' value={''} onChange={() => {}}>
-                  <option value=''>All Due Dates</option>
-                </select>
-              </div>
-              <div>
-                <label className='block text-sm text-gray-600 mb-1'>&nbsp;</label>
-                <div className='flex space-x-2'>
-                  <Button variant='outline' size='sm' className='p-2'><svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><path d='M21 21l-6-6'/><circle cx='11' cy='11' r='8'/></svg></Button>
-                  <Button variant='outline' size='sm' className='p-2'><svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><path d='M5 12h14'/></svg></Button>
-                </div>
-              </div>
-            </div>
+            {/* Sort dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className='px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary'
+            >
+              <option value='-createdTime'>Mới nhất</option>
+              <option value='+createdTime'>Cũ nhất</option>
+              <option value='-finalPrice'>Giá trị cao</option>
+              <option value='+finalPrice'>Giá trị thấp</option>
+            </select>
+
+            {/* Filter button */}
+            <Button
+              variant='outline'
+              onClick={() => setIsFilterOpen(true)}
+              disabled={loading}
+              className='relative'
+            >
+              <svg className='w-4 h-4 mr-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z' />
+              </svg>
+              Bộ lọc
+              {activeFiltersCount > 0 && (
+                <span className='absolute -top-2 -right-2 bg-primary text-on-primary text-xs rounded-full w-5 h-5 flex items-center justify-center'>
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
+
+            <Button variant='outline'>
+              <svg className='w-4 h-4 mr-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' />
+              </svg>
+              Xuất Excel
+            </Button>
+
+            <Button className='btn-gradient'>
+              + Tạo đơn hàng
+            </Button>
           </div>
         </div>
+
+        {/* Active filters display */}
+        {activeFiltersCount > 0 && (
+          <div className='bg-white p-4 rounded-lg border border-gray-200 flex items-center flex-wrap gap-2'>
+            <span className='text-sm text-gray-600 mr-2'>Bộ lọc đang áp dụng:</span>
+            {searchQuery && (
+              <span className='inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700 border border-blue-200'>
+                Tìm kiếm: "{searchQuery}"
+                <button onClick={() => setSearchQuery('')} className='ml-1 text-blue-500 hover:text-blue-700'>×</button>
+              </span>
+            )}
+            {(dateRange.from && dateRange.to) && (
+              <span className='inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-green-50 text-green-700 border border-green-200'>
+                Từ {new Date(dateRange.from).toLocaleDateString('vi-VN')} đến {new Date(dateRange.to).toLocaleDateString('vi-VN')}
+                <button onClick={() => setDateRange({ from: '', to: '' })} className='ml-1 text-green-500 hover:text-green-700'>×</button>
+              </span>
+            )}
+            <button onClick={clearFilters} className='ml-auto text-sm text-primary hover:underline font-medium'>
+              Xóa tất cả bộ lọc
+            </button>
+          </div>
+        )}
 
         {error && <div className='bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg'>{error}</div>}
 
@@ -206,6 +269,17 @@ export default function Orders() {
           ]}
           loading={loading}
           emptyMessage='Chưa có đơn hàng nào'
+        />
+
+        {/* Filter Panel */}
+        <FilterPanel
+          filters={filterGroups}
+          onFilterChange={handleFilterChange}
+          onApplyFilters={applyFilters}
+          onClearFilters={clearFilters}
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          activeFiltersCount={activeFiltersCount}
         />
 
         {!loading && orders.length > 0 && (
