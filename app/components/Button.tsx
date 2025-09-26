@@ -4,9 +4,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   children: ReactNode;
+  icon?: ReactNode;
+  iconPosition?: 'left' | 'right';
 }
 
-export function Button({ variant = 'primary', size = 'md', children, className = '', ...props }: ButtonProps) {
+export function Button({ variant = 'primary', size = 'md', children, className = '', icon, iconPosition = 'left', ...props }: ButtonProps) {
   const baseClasses =
     'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95';
 
@@ -25,7 +27,9 @@ export function Button({ variant = 'primary', size = 'md', children, className =
 
   return (
     <button className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`} {...props}>
+      {icon && iconPosition === 'left' && <span className='mr-2 inline-flex'>{icon}</span>}
       {children}
+      {icon && iconPosition === 'right' && <span className='ml-2 inline-flex'>{icon}</span>}
     </button>
   );
 }

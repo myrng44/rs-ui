@@ -7,7 +7,7 @@ export default [
   route('home-staff', 'routes/home.staff.tsx'),
 	route('login', 'routes/login.tsx'),
 	route('dashboard', 'routes/dashboard.tsx'),
-  route('statistics', 'routes/statistics.tsx'),
+  route('reports', 'routes/reports.tsx'),
   route('products', 'routes/products.tsx'),
 	route('categories', 'routes/categories.tsx'),
 	route('orders', 'routes/orders.tsx'),

@@ -55,7 +55,6 @@ export default function Products() {
   const [searchText, setSearchText] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState<Array<{ value: string; label: string }>>([]);
-  const [selectedCategory, setSelectedCategory] = useState('');
 
   const productSearchFields: SearchField[] = [
     { value: "sku", label: "Mã SKU", type: "text", operator: "~" },
@@ -77,7 +76,7 @@ export default function Products() {
     }, 400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, selectedCategory]);
+  }, [searchText]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -96,6 +95,7 @@ export default function Products() {
     try {
       const res = await categoryApi.getAll({ limit: 100, offset: 0, sort: 'name' });
       setCategories([{ value: '', label: 'Tất cả danh mục' }, ...res.elements.map((c: any) => ({ value: c.id, label: c.name }))]);
+      setAllCategories(res.elements.map((c: any) => ({ id: c.id, name: c.name })));
     } catch (e) {
       console.error('Error loading categories', e);
     }
@@ -110,19 +110,17 @@ export default function Products() {
   const buildFilterQuery = () => {
     const parts: string[] = [];
     if (selectedCategoryIds.length > 0) {
-      parts.push(`categoryid:${selectedCategoryIds.join(',')}`);
+      // API nhận một hoặc nhiều category, phân tách bằng "_"
+      parts.push(`categoryId:${selectedCategoryIds.join('_')}`);
     }
-    if (minPrice && maxPrice) {
-      parts.push(`unitPrice(${minPrice},${maxPrice})`);
-    }
-    return parts.join(';');
+    return parts.join(' AND ');
   };
 
   const applyFilters = async () => {
     const q = buildFilterQuery();
     setFilterQuery(q);
     setCurrentPage(1);
-    await loadProducts(1, q);
+    await loadProducts(1, q, minPrice && maxPrice ? { min: parseInt(minPrice), max: parseInt(maxPrice) } : undefined);
     setIsFilterOpen(false);
   };
 
@@ -135,25 +133,33 @@ export default function Products() {
     await loadProducts(1, '');
   };
 
-  const loadProducts = async (page: number = currentPage, q: string = filterQuery) => {    try {
+  const loadProducts = async (page: number = currentPage, q: string = filterQuery, priceRange?: { min: number; max: number }) => {
+    try {
       setLoading(true);
       const offset = (page - 1) * itemsPerPage;
-      const sort = q ? '+name,+unitPrice' : '-createdTime';
+      // Nếu có bộ lọc, sắp xếp theo yêu cầu +name,-unitPrice, ngược lại ưu tiên mới nhất
       const parts: string[] = [];
-      if (searchText) parts.push(`name~${searchText}`);
-      if (selectedCategory) parts.push(`categoryId:${selectedCategory}`);
-      const query = parts.length ? parts.join(' AND ') : undefined;
+      if (searchText) {
+        // Autocomplete trả về chuỗi truy vấn hoàn chỉnh, dùng trực tiếp
+        parts.push(searchText);
+      }
+      // Nếu dropdown đã bị loại bỏ, chỉ dùng các filter từ modal / autocomplete
+      const extraQuery = parts.filter(Boolean).join(' AND ');
+      const finalQuery = [q, extraQuery].filter(Boolean).join(' AND ');
+      const sort = finalQuery ? '+name,-unitPrice' : '-createdTime';
+
       const response = await productsApi.getAll({
         offset,
         limit: itemsPerPage,
-        sort: sort,
-        query: q || undefined,
+        sort,
+        query: finalQuery || undefined,
+        unitPriceRange: priceRange,
       });
       setProducts(response.elements);
       setTotalElements(response.totalElements);
       setError('');
     } catch (err: any) {
-      setError('Không thể tải danh sách sản phẩm');
+      setError('Không thể tải danh s��ch sản phẩm');
       console.error('Error loading products:', err);
     } finally {
       setLoading(false);
@@ -319,15 +325,7 @@ export default function Products() {
               </div>
             )}
 
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className='px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:border-gray-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary'
-            >
-              {categories.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+            {/* Dropdown removed: category selection is now via filter modal only */}
             <div className='hidden sm:block h-6 w-px bg-gray-200' />
             <div className='flex rounded-lg border border-gray-300 overflow-hidden'>
               <button
@@ -386,7 +384,7 @@ export default function Products() {
             columns={[
               { key: 'sku', label: 'Mã SKU', render: (value) => <span className='font-medium text-gray-900'>{value}</span> },
               { key: 'name', label: 'Tên sản phẩm', render: (value) => <span className='text-gray-900'>{value}</span> },
-              { key: 'desc', label: 'Mô tả', render: (value) => <span className='text-gray-600'>{value}</span> },
+              { key: 'description', label: 'Mô tả', render: (value) => <span className='text-gray-600'>{value}</span> },
               { key: 'unitPrice', label: 'Giá bán', render: (value) => <span className='text-gray-900'>{formatPrice(value)}</span> },
             ]}
             actions={[
@@ -394,7 +392,7 @@ export default function Products() {
               { label: 'Xóa', variant: 'danger', onClick: (product) => handleDelete(product.id) },
             ]}
             loading={loading}
-            emptyMessage='Chưa có sản phẩm nào'
+            emptyMessage='Chưa có sản phẩm n��o'
           />
         ) : (
           renderGrid()
@@ -500,6 +498,20 @@ export default function Products() {
               </div>
             </div>
           </div>
+        </Modal>
+
+        <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => { setIsAddModalOpen(false); resetForm(); }}
+          title='Thêm sản phẩm mới'
+          footer={
+            <>
+              <Button variant='outline' onClick={() => { setIsAddModalOpen(false); resetForm(); }}>Hủy</Button>
+              <Button onClick={handleAdd} disabled={isSubmitting}>{isSubmitting ? 'Đang thêm...' : 'Thêm'}</Button>
+            </>
+          }
+        >
+          <ProductForm formData={formData} onChange={handleFormChange} />
         </Modal>
 
         <Modal

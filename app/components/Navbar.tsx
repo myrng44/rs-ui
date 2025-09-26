@@ -47,7 +47,7 @@ function NotificationBell() {
 }
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, getHomePath } = useAuth();
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
 
@@ -59,12 +59,10 @@ export function Navbar() {
   return (
     <nav className='h-16 bg-surface border-b border-gray-200 px-6 flex items-center justify-between shadow-sm fixed top-0 left-0 right-0 z-50 backdrop-blur-sm bg-opacity-95'>
       <div className='flex items-center space-x-8'>
-        <Link to='/' className='text-xl font-bold text-primary hover:text-opacity-80 transition-all duration-200 transform hover:scale-105'>
-          Store maN
+        <Link to={getHomePath()} className='text-xl font-bold text-primary hover:text-opacity-80 transition-all duration-200 transform hover:scale-105'>          Store maN
         </Link>
         <div className='flex items-center space-x-6'>
-          <Link to='/' className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50'>
-            Trang chủ
+          <Link to={getHomePath()} className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50'>            Trang chủ
           </Link>
           <Link to='/about' className='text-gray-700 hover:text-primary transition-all duration-200 font-medium px-3 py-2 rounded-md hover:bg-gray-50'>
             Về chúng tôi

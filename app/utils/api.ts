@@ -32,7 +32,21 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
   if (!response.ok) {
-    const error = new Error(`API Error: ${response.statusText}`) as ApiError;
+    let errorMessage = response.statusText;
+    try {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const body = await response.json();
+        // try common fields
+        errorMessage = body?.metadata?.message || body?.message || JSON.stringify(body);
+      } else {
+        const text = await response.text();
+        errorMessage = text || errorMessage;
+      }
+    } catch (e) {
+      // ignore parsing errors
+    }
+    const error = new Error(`API Error: ${errorMessage}`) as ApiError;
     error.status = response.status;
     throw error;
   }
@@ -75,14 +89,20 @@ export const authApi = {
 
 //products API
 export const productsApi = {
-  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number }) => {
+  getAll: async (params?: { query?: string; sort?: string; offset?: number; limit?: number; unitPriceRange?: { min: number; max: number } }) => {
     const searchParams = new URLSearchParams();
     if (params?.query) searchParams.append('query', params.query);
     if (params?.sort) searchParams.append('sort', params.sort);
     if (params?.offset) searchParams.append('offset', params.offset.toString());
     if (params?.limit) searchParams.append('limit', params.limit.toString());
+    let queryString = searchParams.toString();
+    if (params?.unitPriceRange) {
+      const { min, max } = params.unitPriceRange;
+      // Some backends expect unitPrice range as a raw query segment like: &unitPrice(10000,30000)
+      // Append raw segment if needed
+      queryString = queryString ? `${queryString}&unitPrice(${min},${max})` : `unitPrice(${min},${max})`;
+    }
 
-    const queryString = searchParams.toString();
     const endpoint = `/secured/rest/v1/products${queryString ? `?${queryString}` : ''}`;
 
     const response = await apiCallWithResponse<Array<{
@@ -117,9 +137,17 @@ export const productsApi = {
     sku: string;
     name: string;
     description: string;
-    unitPrice: string;
-    categoryId: string;
+    unitPrice: string | number;
+    categoryId: string | number;
   }) => {
+    const payload = {
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      unitPrice: typeof product.unitPrice === 'string' ? parseFloat(product.unitPrice) : product.unitPrice,
+      categoryId: typeof product.categoryId === 'string' ? (isNaN(parseInt(product.categoryId)) ? product.categoryId : parseInt(product.categoryId)) : product.categoryId,
+    };
+
     const response = await apiCallWithResponse<{
       id: string;
       sku: string;
@@ -129,13 +157,7 @@ export const productsApi = {
       categoryId: string;
     }>('/secured/rest/v1/products', {
       method: 'POST',
-      body: JSON.stringify({
-        sku: product.sku,
-        name: product.name,
-        description: product.description,
-        unitPrice: product.unitPrice,
-        categoryId: product.categoryId,
-      }),
+      body: JSON.stringify(payload),
     });
 
     return response.body;
@@ -147,10 +169,18 @@ export const productsApi = {
       sku: string;
       name: string;
       description: string;
-      unitPrice: string;
-      categoryId: string;
+      unitPrice: string | number;
+      categoryId: string | number;
     },
   ) => {
+    const payload = {
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      unitPrice: typeof product.unitPrice === 'string' ? parseFloat(product.unitPrice) : product.unitPrice,
+      categoryId: typeof product.categoryId === 'string' ? (isNaN(parseInt(product.categoryId)) ? product.categoryId : parseInt(product.categoryId)) : product.categoryId,
+    };
+
     const response = await apiCallWithResponse<{
       id: string;
       sku: string;
@@ -160,13 +190,7 @@ export const productsApi = {
       categoryId: string;
     }>(`/secured/rest/v1/products/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({
-        sku: product.sku,
-        name: product.name,
-        description: product.description,
-        unitPrice: product.unitPrice,
-        categoryId: product.categoryId
-      }),
+      body: JSON.stringify(payload),
     });
 
     return response.body;
@@ -679,19 +703,37 @@ export const storeStockApi = {
     };
   },
   getProductBatches: async (productId: number | string) => {
-    const response = await apiCallWithResponse<Array<{
-      qtyReversed: number;
-      qtyTotal: number;
-      qtyAvailable: number;
-      manufactureDate: string;
-      batchCode: string;
-      importedPrice: number;
-      expiryDate: string;
+    const response = await apiCallWithResponse<{
+      id: string | null;
       productName: string;
-      supplierName: string;
-    }>>(`/secured/rest/v1/batch-stocks/products/${productId}`);
+      remainStock: number;
+      batchItems: Array<{
+        batchCode: string;
+        supplierName: string | null;
+        originalQty: number;
+        remainQty: number;
+        importPrice: number;
+        manufactureDate: string;
+        expiryDate: string;
+      }>;
+    }>(`/secured/rest/v1/batch-stocks/products/${productId}`);
 
-    return response.body;
+    const body = response.body || { batchItems: [] };
+    const productName = body.productName || '';
+
+    const mapped = (body.batchItems || []).map((item) => ({
+      qtyReversed: (item.originalQty || 0) - (item.remainQty || 0),
+      qtyTotal: item.originalQty || 0,
+      qtyAvailable: item.remainQty || 0,
+      manufactureDate: item.manufactureDate,
+      batchCode: item.batchCode,
+      importedPrice: item.importPrice || 0,
+      expiryDate: item.expiryDate,
+      productName,
+      supplierName: item.supplierName || '',
+    }));
+
+    return mapped;
   }
 };
 

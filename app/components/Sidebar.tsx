@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router';
+import { useAuth } from '~/contexts/authContext';
 
 // simple heroicon-ish paths for distinct icons
 const ICONS: Record<string, string> = {
   dashboard: 'M3 3h18v4H3V3zm0 7h18v11H3V10z',
-  statistics: 'M3 3v18h18V3H3zm5 11h2V8H8v6zm4 0h2V5h-2v9zm4 0h2v-4h-2v4z',
+  reports: 'M3 3v18h18V3H3zm5 11h2V8H8v6zm4 0h2V5h-2v9zm4 0h2v-4h-2v4z',
   products: 'M3 7h18v2H3V7zm0 6h18v2H3v-2z',
   categories: 'M4 6h7v7H4z M13 6h7v7h-7z M4 15h7v3H4z M13 15h7v3h-7z',
   orders: 'M3 3h18v2H3V3zm2 5h14l-1.5 9h-11L5 8z',
@@ -16,7 +17,7 @@ const ICONS: Record<string, string> = {
 
 const menuItems = [
   { path: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard },
-  { path: '/statistics', label: 'Thống kê', icon: ICONS.statistics },
+  { path: '/reports', label: 'Báo cáo', icon: ICONS.reports },
   { path: '/products', label: 'Sản phẩm', icon: ICONS.products },
   { path: '/categories', label: 'Danh mục', icon: ICONS.categories },
   { path: '/orders', label: 'Đơn hàng', icon: ICONS.orders },
@@ -34,11 +35,14 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, onHoverChange }: SidebarProps) {
   const location = useLocation();
+  const { user, canAccess, logout } = useAuth();
 
   const collapsed = isCollapsed;
 
   const handleMouseEnter = () => onHoverChange?.(true);
   const handleMouseLeave = () => onHoverChange?.(false);
+
+  const visibleMenu = menuItems.filter((m) => canAccess(m.path));
 
   return (
     <aside
@@ -62,7 +66,7 @@ export function Sidebar({ isCollapsed, onHoverChange }: SidebarProps) {
 
         <nav className='px-2 py-3 flex-1'>
           <ul className='space-y-1'>
-            {menuItems.map((item) => {
+            {visibleMenu.map((item) => {
               const isActive = location.pathname === item.path;
               return (
                 <li key={item.path} className='relative'>
@@ -92,11 +96,13 @@ export function Sidebar({ isCollapsed, onHoverChange }: SidebarProps) {
         <div className={`px-4 py-4 ${collapsed ? 'text-center' : ''}`}>
           <div className='flex items-center justify-between'>
             {!collapsed ? (
-              <div className='text-sm text-gray-600'>Phiên: Admin</div>
+              <div className='text-sm text-gray-600'>Phiên: {user?.roleName || 'User'}</div>
             ) : (
-              <div className='text-xs text-gray-500'>A</div>
+              <div className='text-xs text-gray-500'>{(user?.roleName || 'U').charAt(0)}</div>
             )}
-            {!collapsed && <button className='text-sm text-gray-500 hover:text-primary transition-colors'>Đăng xuất</button>}
+            {!collapsed && (
+              <button onClick={logout} className='text-sm text-gray-500 hover:text-primary transition-colors'>Đăng xuất</button>
+            )}
           </div>
         </div>
       </div>
