@@ -31,7 +31,7 @@ export default function Login() {
       if (err?.status === 401) {
         setError("Tên đăng nhập hoặc mật khẩu không đúng");
       } else {
-        setError("Lỗi kết nối đến server");
+        setError("Tên đăng nhập hoặc mật khẩu không đúng");
       }
     } finally {
       setIsLoading(false);

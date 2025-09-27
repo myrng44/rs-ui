@@ -1,15 +1,15 @@
+import React from "react";
 import { Link } from "react-router";
 import { useAuth } from "~/contexts/authContext";
 import { Button } from "./Button";
-import { Search, Bell } from "lucide-react";
-import { List as ListIcon } from "lucide-react";
+import { Search, Bell, List as ListIcon, LogOut, Settings } from "lucide-react";
 
 type NavbarProps = {
   toggleSidebar: () => void;
   isCollapsed: boolean;
 };
 
-export function Navbar({ toggleSidebar, isCollapsed }: NavbarProps) {
+export default function Navbar({ toggleSidebar, isCollapsed }: NavbarProps) {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -32,8 +32,9 @@ export function Navbar({ toggleSidebar, isCollapsed }: NavbarProps) {
         <button
           onClick={toggleSidebar}
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label={isCollapsed ? "Mở sidebar" : "Đóng sidebar"}
         >
-          {isCollapsed ?                     <ListIcon className="w-5 h-5" /> : <ListIcon className="w-5 h-5" />}
+          <ListIcon className="w-5 h-5" />
         </button>
         <Link to="/" className="text-xl font-bold text-primary">
           Store
@@ -67,9 +68,13 @@ export function Navbar({ toggleSidebar, isCollapsed }: NavbarProps) {
         </Link>
 
         {/* Notification */}
-        <button className="relative p-2 rounded-full hover:bg-gray-100">
+        <button
+          className="relative p-2 rounded-full hover:bg-gray-100"
+          aria-label="Thông báo"
+          title="Thông báo"
+        >
           <Bell className="w-5 h-5 text-gray-600" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
         </button>
 
         {/* User Info */}
@@ -77,24 +82,31 @@ export function Navbar({ toggleSidebar, isCollapsed }: NavbarProps) {
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">
               <span className="text-sm font-medium text-accent">
-                {user.fullName?.charAt(0) ||
-                  user.userName?.charAt(0) ||
-                  "U"}
+                {user.fullName?.charAt(0) || user.userName?.charAt(0) || "U"}
               </span>
             </div>
             <div className="text-sm">
-              <div className="font-medium text-gray-900">
-                {user.fullName || user.userName}
-              </div>
+              <div className="font-medium text-gray-900">{user.fullName || user.userName}</div>
               <div className="text-gray-500">{getRoleName()}</div>
             </div>
-            <Button size="sm" variant="outline" onClick={handleLogout}>
-              Đăng xuất
+
+            {/* Logout with icon */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleLogout}
+              aria-label="Đăng xuất"
+              className="flex items-center"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
             </Button>
 
-            <Button size="sm" variant="outline">
-              Cài đặt
-            </Button>
+            {/* Settings with icon */}
+            <Link to="/settings">
+              <Button size="sm" variant="outline" aria-label="Cài đặt" className="flex items-center">
+                <Settings className="w-4 h-4 mr-2" />
+              </Button>
+            </Link>
           </div>
         ) : (
           <Link to="/login">
