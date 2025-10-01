@@ -64,7 +64,7 @@ export const authApi = {
       fullName: string;
       email: string;
       phone: string;
-      storeId: number;
+      storeId: string;
       lastLogin: string;
       token: string;
       roles: string[];
@@ -83,7 +83,7 @@ export const authApi = {
       fullName: string;
       email: string;
       phone: string;
-      storeId: number;
+      storeId: string;
       lastLogin: string;
       roles: string[];
       permissions: string[];
@@ -363,7 +363,7 @@ export const ordersApi = {
       id: string;
       customerId: string;
       customerName: string;
-      storeId: number;
+      storeId: string;
       voucherCode: string | null;
       finalPrice: number;
       note: string | null;
@@ -390,7 +390,7 @@ export const ordersApi = {
         unitPrice: number;
         totalPrice: number;
       }>;
-      storeId: number;
+      storeId: string;
       voucherCode: string | null;
       finalPrice: number;
       note: string | null;
@@ -435,7 +435,7 @@ export const ordersApi = {
       id: string;
       customerId: string;
       customerName: string;
-      storeId: number;
+      storeId: string;
       voucherCode: string | null;
       finalPrice: number;
       note: string | null;
@@ -444,7 +444,7 @@ export const ordersApi = {
       method: 'PUT',
       body: JSON.stringify({
         customerId: order.customerId,
-        storeId: parseInt(order.storeId),
+        storeId: order.storeId,
         voucherCode: order.voucherId || null,
         note: order.note,
         paymentMethodName: order.paymentId,
@@ -499,7 +499,7 @@ export const ordersApi = {
       id: string;
       customerId: string;
       customerName: string;
-      storeId: number;
+      storeId: string;
       voucherCode: string | null;
       finalPrice: number;
       note: string | null;
@@ -710,8 +710,8 @@ export const supplierApi = {
       locationId:
         supplier.locationId === undefined || supplier.locationId === null || supplier.locationId === ''
           ? null
-          : String(supplier.locationId), 
-      contact: supplier.contact ?? null,
+          : String(supplier.locationId),
+
     };
 
     const response = await apiCallWithResponse<{
@@ -1056,42 +1056,30 @@ export const paymentMethodApi = {
   },
 };
 
-//BatchApi 
-
-/**
- * BatchDto (client-side) -- flexible để tương thích legacy & new schema
- */
+//BatchApi
 export interface BatchDto {
-  // general identifiers (may be batch id or batch_item id depending on backend)
-  id?: string;             // could be batch id or batch_item id (legacy ambiguity)
-  batchId?: string;        // explicit batch id if backend returns it
-  batchItemId?: string;    // explicit batch_item id if backend returns it
+  id?: string;             
+  batchId?: string;       
+  batchItemId?: string;   
   batchCode?: string;
-
-  // product / item level (may appear in batch_item responses)
   productId?: number | string;
-  itemQty?: number;        // qty in batch_item
-  originalQty?: number;    // legacy field on batch
-  importedPrice?: number;  // often on batch_item (import price per item)
+  itemQty?: number;        
+  originalQty?: number;    
+  importedPrice?: number;  
   manufactureDate?: string | any;
   expiryDate?: string | any;
   arrivalDate?: string | any;
 
   supplierName?: string;
-  // raw payload for debugging
   __raw?: any;
 }
 
-/**
- * Payload type to create a batch. Note: creating items likely requires a separate endpoint.
- */
 export type BatchCreatePayload = {
   batchCode: string;
   supplierId: number;
   manufactureDate?: string;
   expiryDate?: string;
   arrivalDate?: string;
-  // optional: backend might not support items creation inside batch; left here for future
   items?: Array<{
     productId: number | string;
     qty: number;
@@ -1106,7 +1094,6 @@ export const batchApi = {
     const response = await apiCallWithResponse<BatchDto[]>(
       `/secured/rest/v1/batch/by-product?productId=${productId}`
     );
-    // attach raw for debugging if needed
     return (response.data || []).map((b) => ({ ...b, __raw: b }));
   },
 
@@ -1152,14 +1139,13 @@ export const batchApi = {
   },
 
   create: async (batch: BatchCreatePayload) => {
-    // Note: current backend BatchController#create expects BatchDto (batch-level)
-    // If you want to create batch_items as well, backend must provide /batch-item endpoint.
     const payload: any = {
       batchCode: batch.batchCode,
       supplierId: batch.supplierId,
       manufactureDate: batch.manufactureDate,
       expiryDate: batch.expiryDate,
       arrivalDate: batch.arrivalDate,
+      items: batch.items ?? [], 
     };
 
     const response = await apiCallWithResponse<BatchDto>(`/secured/rest/v1/batch`, {
@@ -1167,10 +1153,9 @@ export const batchApi = {
       body: JSON.stringify(payload),
     });
 
-    // If items were provided and you later add batch-item endpoint,
-    // you can call it here to create items for the created batch.
     return { ...response.data, __raw: response.data };
   },
+
 
   update: async (id: string, batch: Partial<BatchCreatePayload>) => {
     const response = await apiCallWithResponse<BatchDto>(`/secured/rest/v1/batch/${id}`, {
@@ -1244,10 +1229,10 @@ export const storesApi = {
     const payload = {
       name: store.name,
       locationId:
-        store.locationId === undefined || store.locationId === null
+        store.locationId === undefined || store.locationId === null || store.locationId === ''
           ? null
-          : typeof store.locationId === 'string',
-      phone: store.phone ?? null,
+          : String(store.locationId),
+
     };
 
     const response = await apiCallWithResponse<{
@@ -1349,5 +1334,72 @@ export const storesApi = {
     }>(endpoint);
     return response.data;
   },
+}
+
+  // BATCH STOCKS API
+export const batchStocksApi = {
+  create: async (payload: { batchId: string; storeId: string; status?: string }) => {
+    const response = await apiCallWithResponse<any>('/secured/rest/v1/batch-stocks', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return response.data;
+  },
+
+  getAvailableByProductAndStore: async (productId: string, storeId: string) => {
+    const endpoint = `/secured/rest/v1/batch-stocks/available?productId=${productId}&storeId=${storeId}`;
+    const response = await apiCallWithResponse<any>(endpoint);
+    return response.data ?? response;
+  },
+
+  getAvailableTotal: async (productId: string, storeId: string) => {
+    const endpoint = `/secured/rest/v1/batch-stocks/available-total?productId=${productId}&storeId=${storeId}`;
+    const response = await apiCallWithResponse<any>(endpoint);
+    return response.data ?? response;
+  },
 
 };
+
+// INVENTORY ADJUSTMENTS API
+export const inventoryApi = {
+  createAdjustment: async (payload: { batchStockId: string; changeQty: number; reason?: string; referenceId?: string }) => {
+    const response = await apiCallWithResponse<any>('/secured/rest/v1/inventory_adjustment', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return response.data;
+  },
+
+  getHistoryByBatchStock: async (batchStockId: string) => {
+    const endpoint = `/secured/rest/v1/inventory_adjustment?batchStockId=${batchStockId}`;
+    const response = await apiCallWithPageResponse<any>(endpoint);
+    return response.data;
+  }
+};
+
+// storeTransfersApi
+export const storeTransfersApi = {
+  create: async (payload: {
+    fromStoreId: string ;
+    toStoreId: string ;
+    transferDate?: string; 
+    status?: string;
+    items: Array<{ batchStockId: string | number; qtyRequested: number }>;
+  }) => {
+    const response = await apiCallWithResponse<any>('/secured/rest/v1/store-transfers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return response.data ?? response;
+  },
+
+  getAll: async (params?: { offset?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.offset !== undefined) searchParams.append('offset', String(params.offset));
+    if (params?.limit !== undefined) searchParams.append('limit', String(params.limit));
+    const endpoint = `/secured/rest/v1/store-transfers${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+    const response = await apiCallWithPageResponse<any>(endpoint);
+    return response.data ?? response;
+  },
+};
+

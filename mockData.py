@@ -46,8 +46,7 @@ class SnowflakeIDGenerator:
 fake = Faker('vi_VN')  # Vietnamese locale
 snowflake = SnowflakeIDGenerator()
 
-# Helper functions
-# Thay thế hàm hiện tại:
+
 def random_datetime(start_date, end_date):
     """Generate random datetime between start and end dates"""
     time_between = end_date - start_date

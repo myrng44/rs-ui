@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { storesApi } from '~/utils/api';
 import { Button } from '~/components/Button';
-import { Modal } from '~/components/Modal';
 import { Toast } from '~/components/Toast';
 import { Pagination } from '~/components/Pagination';
 import { Layout } from '~/components/Layout';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import AutocompleteSearchBar, { type SearchField, type SearchResult } from '~/components/AutoCompleteSearchBar';
 import { Input } from '~/components/Input';
 
@@ -13,7 +12,7 @@ interface Store {
   id: string;
   name: string;
   address?: string;
-  locationId?: number | null;
+  locationId?: string | null;
   phone?: string | null;
 }
 
@@ -34,7 +33,6 @@ function StoreForm({
           placeholder="Nhập tên cửa hàng"
         />
       </div>
-
 
       <div>
         <label className="block text-sm font-medium text-gray-700">Điện thoại</label>
@@ -64,7 +62,7 @@ export default function StoresPage() {
   const [loading, setLoading] = useState(false);
 
   const [searchText, setSearchText] = useState<string>('');
-  const [sortValue, setSortValue] = useState('-createdTime');
+  const [sortBy, setSortBy] = useState<string>('-createdTime'); // changed name
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -88,7 +86,7 @@ export default function StoresPage() {
       const apiParams: any = {
         offset,
         limit: itemsPerPage,
-        sort: sortValue,
+        sort: sortBy,
       };
 
       if (queryText && queryText.trim()) {
@@ -96,14 +94,12 @@ export default function StoresPage() {
         apiParams.query = q;
       }
 
-      const response = await storesApi
-  .getAll(apiParams);
+      const response = await storesApi.getAll(apiParams);
 
       const elems = ((response && (response as any).elements) || []).map((e: any) => ({
         ...e,
         id: e.id !== undefined && e.id !== null ? String(e.id) : '',
         locationId: e.locationId !== undefined && e.locationId !== null ? String(e.locationId) : '',
-
       }));
 
       const total = (response && (response as any).totalElements) ?? elems.length;
@@ -123,12 +119,11 @@ export default function StoresPage() {
     setCurrentPage(1);
     loadStores(1, searchText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, sortValue]);
+  }, [searchText, sortBy]);
 
   const handleAutocompleteSearch = async (query: string): Promise<SearchResult[]> => {
     try {
-      return await storesApi
-  .search(query);
+      return await storesApi.search(query);
     } catch (err) {
       console.error('Autocomplete store error', err);
       return [];
@@ -161,16 +156,14 @@ export default function StoresPage() {
       }
 
       if (editingStore) {
-        await storesApi
-    .update(editingStore.id, {
+        await storesApi.update(editingStore.id, {
           name: formData.name,
-          locationId: formData.locationId ,
+          locationId: formData.locationId,
           phone: formData.phone,
         });
         setToast({ message: 'Cập nhật thành công', type: 'success' });
       } else {
-        await storesApi
-    .create({
+        await storesApi.create({
           name: formData.name,
           locationId: formData.locationId,
           phone: formData.phone,
@@ -189,8 +182,7 @@ export default function StoresPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Bạn có chắc muốn xoá cửa hàng này?')) return;
     try {
-      await storesApi
-  .delete(id);
+      await storesApi.delete(id);
       setToast({ message: 'Xoá thành công', type: 'success' });
       const newTotal = Math.max(0, totalItems - 1);
       const maxPage = Math.max(1, Math.ceil(newTotal / itemsPerPage));
@@ -213,14 +205,30 @@ export default function StoresPage() {
     setCurrentPage(1);
   };
 
+  // Sort handler similar to OrdersTable
+  const handleSort = useCallback((field: string) => {
+    setSortBy((prev) => (prev === field ? `-${field}` : prev === `-${field}` ? field : field));
+    setCurrentPage(1);
+  }, []);
+
+  const getSortIcon = (field: string) => {
+    if (sortBy === field) return ' ↑';
+    if (sortBy === `-${field}`) return ' ↓';
+    return '';
+  };
+
   // ----- Render -----
   return (
     <Layout>
       <div className="p-6 space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="flex-1">
-            <h1 className="text-2xl font-semibold text-gray-800">Quản lý Cửa Hàng</h1>
-            <p className="text-sm text-gray-500 mt-1">Danh sách cửa hàng</p>
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">Quản lý Cửa Hàng</h1>
+              <p className="mt-2 text-gray-600">Danh sách cửa hàng</p>
+            </div>
+            <div className="flex items-center gap-2">
+            </div>
           </div>
         </div>
 
@@ -246,40 +254,34 @@ export default function StoresPage() {
           </div>
         </div>
 
-        {/* Sort */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <select
-              value={sortValue}
-              onChange={(e) => setSortValue(e.target.value)}
-              className="px-3 py-2 border rounded-md bg-white"
-            >
-              <option value="-createdTime">Mới nhất</option>
-              <option value="createdTime">Cũ nhất</option>
-              <option value="name">Tên A→Z</option>
-              <option value="-name">Tên Z→A</option>
-            </select>
-          </div>
-        </div>
-
         {/* Table */}
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">TÊN</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">ĐIỆN THOẠI</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">LOCATION</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">THAO TÁC</th>
+                  <th
+                    onClick={() => handleSort('id')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  >
+                    ID{getSortIcon('id')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('name')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  >
+                    TÊN{getSortIcon('name')}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ĐIỆN THOẠI</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LOCATION</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">THAO TÁC</th>
                 </tr>
               </thead>
 
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center">
+                    <td colSpan={5} className="px-6 py-8 text-center">
                       <div className="flex justify-center items-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         <span className="ml-3 text-gray-600">Đang tải dữ liệu...</span>
@@ -288,7 +290,7 @@ export default function StoresPage() {
                   </tr>
                 ) : stores.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                       Không có cửa hàng
                     </td>
                   </tr>
@@ -313,14 +315,6 @@ export default function StoresPage() {
 
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditModal(s)}
-                            className="text-amber-600 hover:text-amber-900 hover:bg-amber-50"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -353,24 +347,6 @@ export default function StoresPage() {
             loading={loading}
           />
         </div>
-
-        {/* Modal */}
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          title={editingStore ? 'Cập nhật Cửa hàng' : 'Thêm mới Cửa hàng'}
-        >
-          <StoreForm
-            formData={formData}
-            onChange={(field, value) => setFormData({ ...formData, [field]: value })}
-          />
-          <div className="mt-4 flex justify-end gap-2">
-            <Button onClick={() => setIsModalOpen(false)} variant="secondary">
-              Hủy
-            </Button>
-            <Button onClick={handleSave}>{editingStore ? 'Cập nhật' : 'Thêm mới'}</Button>
-          </div>
-        </Modal>
 
         {/* Toast */}
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

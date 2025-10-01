@@ -15,7 +15,7 @@ const menuItems = [
   { path: "/orders", label: "Đơn hàng", icon: "🛒" },
   { path: "/suppliers", label: "Nhà cung cấp", icon: "🏭" },
   { path: "/stores", label: "Cửa hàng", icon: "🏪" },
-  { path: "/stock", label: "Kho", icon: "📋" },
+  { path: "/batch", label: "Kho", icon: "📋" },
   { path: "/vouchers", label: "Mã giảm giá", icon: "🎫" }
 ];
 

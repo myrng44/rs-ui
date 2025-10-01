@@ -8,7 +8,7 @@ interface User {
   fullName: string;
   email: string;
   phone: string;
-  storeId: number;
+  storeId: string;
   lastLogin?: string;
   roles: string[];
   permissions: string[];

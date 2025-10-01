@@ -34,7 +34,6 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [availableProducts, setAvailableProducts] = useState<Array<{ value: string; label: string; unitPrice?: number }>>([]);
   const [paymentMethods, setPaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
-  const [stores, setStores] = useState<Array<{ value: string; label: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -44,7 +43,6 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
     if (!isOpen) return;
     loadProducts();
     loadPaymentMethods();
-    loadStores();
     setErrors({}); setServerError(null);
   }, [isOpen]);
 
@@ -69,15 +67,6 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
     }
   };
 
-  const loadStores = async () => {
-    try {
-      const res = await storesApi.getAll({ offset: 0, limit: 200 });
-      setStores((res.elements || []).map((s: any) => ({ value: String(s.id), label: s.name })));
-    } catch (err) {
-      console.error('Load stores error', err);
-      setServerError('Không thể tải danh sách cửa hàng. Kiểm tra cấu hình API.');
-    }
-  };
 
   const addLine = () => {
     const tmpId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
@@ -104,7 +93,6 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
 
   const validate = () => {
     const e: Record<string,string> = {};
-    // if (!formData.storeId) e.storeId = 'Vui lòng chọn cửa hàng';
     if (!formData.paymentId) e.paymentId = 'Vui lòng chọn phương thức thanh toán';
     if (lines.length === 0) e.lines = 'Vui lòng thêm ít nhất 1 sản phẩm';
     for (const [i, l] of lines.entries()) {
@@ -112,8 +100,6 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
       if (!l.qtyOrdered || l.qtyOrdered < 1) { e.lines = `Sản phẩm #${i+1} số lượng không hợp lệ`; break; }
     }
 
-    // existence checks
-    // if (formData.storeId && !stores.find(s => s.value === formData.storeId)) e.storeId = 'Cửa hàng không hợp lệ';
     if (formData.paymentId && !paymentMethods.find(pm => pm.value === formData.paymentId)) e.paymentId = 'Phương thức thanh toán không hợp lệ';
     for (const l of lines) if (l.productId && !availableProducts.find(p => p.value === l.productId)) { e.lines = `Sản phẩm không hợp lệ: ${l.productName || l.productId}`; break; }
 
@@ -124,7 +110,6 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
   const buildPayload = () => {
     const payload: any = {};
     if (formData.customerId?.trim()) payload.customerId = String(formData.customerId.trim());
-    payload.storeId = String(formData.storeId);
     if (formData.note?.trim()) payload.note = formData.note.trim();
     if (formData.voucherId?.trim()) payload.voucherId = String(formData.voucherId.trim());
     payload.paymentId = String(formData.paymentId);
@@ -169,7 +154,6 @@ const OrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Mã khách hàng" value={formData.customerId} onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))} placeholder="Nhập mã khách hàng" />
-            {/* <Dropdown label="Cửa hàng" value={formData.storeId} onChange={(e) => setFormData(prev => ({ ...prev, storeId: e.target.value }))} options={[{ value: '', label: 'Chọn cửa hàng' }, ...stores]} required error={errors.storeId} /> */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

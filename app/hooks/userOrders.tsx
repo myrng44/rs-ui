@@ -5,7 +5,7 @@ interface Order {
   id: string;
   customerId: string;
   customerName: string;
-  storeId: number;
+  storeId: string;
   voucherCode: string | null;
   finalPrice: number;
   note: string | null;

@@ -1,13 +1,13 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, Filter, RefreshCw } from 'lucide-react';
-import { Button } from '../components/Button';
-import { Pagination } from '../components/Pagination';
-import OrdersTable from '../components/orders/OrdersTable';
-import OrdersFilters from '../components/orders/OrdersFilters';
-import OrderDetailModal from '../components/orders/OrderDetailModal';
-import OrderForm from '../components/orders/OrderForm';
-import { useOrders } from '../hooks/userOrders';
-import { ordersApi, paymentMethodApi, storesApi } from '~/utils/api';
+
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Plus } from 'lucide-react';
+import { Button } from '~/components/Button';
+import { Pagination } from '~/components/Pagination';
+import OrdersTable from '~/components/orders/OrdersTable';
+import OrderDetailModal from '~/components/orders/OrderDetailModal';
+import OrderForm from '~/components/orders/OrderForm';
+import { useOrders } from '~/hooks/userOrders';
+import { ordersApi, storesApi } from '~/utils/api';
 import { Layout } from '~/components/Layout';
 import AutocompleteSearchBar, { type SearchField, type SearchResult } from '~/components/AutoCompleteSearchBar';
 
@@ -18,33 +18,20 @@ interface FilterValues {
   storeId: string;
 }
 
-interface PaymentMethod {
-  id: string;
-  code: string;
-  name: string;
-}
-
 const OrdersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('-createdTime');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState<FilterValues>({
-    paymentMethod: '',
-    priceRange: { min: '', max: '' },
-    hasVoucher: '',
-    storeId: ''
-  });
+  const [filters, setFilters] = useState<FilterValues>({ paymentMethod: '', priceRange: { min: '', max: '' }, hasVoucher: '', storeId: '' });
 
   // Modal states
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Data for dropdowns
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
+  // Stores for display
+  const [stores, setStores] = useState<Array<{ id: string; name: string }>>([]);
 
   // Use the orders hook
   const {
@@ -55,17 +42,11 @@ const OrdersPage: React.FC = () => {
     totalPages,
     refetch,
     deleteOrder
-  } = useOrders({
-    page: currentPage,
-    limit: itemsPerPage,
-    query: searchQuery,
-    sort: sortBy,
-    filters: filters
-  });
+  } = useOrders({ page: currentPage, limit: itemsPerPage, query: searchQuery, sort: sortBy, filters: filters });
 
   const ordersSearchFields: SearchField[] = [
     { value: 'customerId', label: 'Mã khách hàng', type: 'text', operator: ':' },
-    { value: 'finalPrice', label: 'Giá cuối', type: 'number', operator: ':' }
+    { value: 'storeId', label: 'Mã cửa hàng', type: 'text', operator: ':' }
   ];
 
   // onSearch should ONLY return suggestions (do not modify searchQuery here)
@@ -78,26 +59,18 @@ const OrdersPage: React.FC = () => {
     }
   }, []);
 
-  // Called when user submits a query (Enter) or selects a suggestion (component's submitOnSelect=true by default)
-  // query is raw like "customerId:123" or "" to clear
+  // Called when user submits a query (Enter) or selects a suggestion
   const handleSearchSubmit = useCallback((query: string) => {
     setSearchQuery(query || '');
     setCurrentPage(1);
   }, []);
 
-  // Load payment methods and stores for filters
+  // Load stores for filters / display
   useEffect(() => {
     (async () => {
       try {
-        const pm = await paymentMethodApi.getAll();
-        setPaymentMethods(pm.elements || []);
-      } catch (err) {
-        console.error('Error loading payment methods:', err);
-      }
-
-      try {
         const s = await storesApi.getAll({ offset: 0, limit: 200 });
-        setStores((s.elements || []).map((x: any) => ({ id: Number(x.id), name: x.name })));
+        setStores((s.elements || []).map((x: any) => ({ id: String(x.id), name: x.name })));
       } catch (err) {
         console.error('Error loading stores:', err);
       }
@@ -118,7 +91,6 @@ const OrdersPage: React.FC = () => {
     }
     setCurrentPage(1);
   }, [sortBy]);
-
 
   const handleDelete = useCallback(async (orderId: string) => {
     try {
@@ -147,6 +119,9 @@ const OrdersPage: React.FC = () => {
     refetch();
   }, [refetch]);
 
+  // map storeId -> name for fast lookup
+  const storesMap = useMemo(() => Object.fromEntries(stores.map(s => [s.id, s.name])), [stores]);
+
   // Compute totals robustly (used for summary fallback)
   const computeOrderTotal = (o: any): number => {
     if (!o) return 0;
@@ -162,7 +137,7 @@ const OrdersPage: React.FC = () => {
     const shipping = Number(o.deliveryFee ?? o.shippingFee ?? o.shipping ?? 0);
     const discount = Number(o.voucherAmount ?? o.discountAmount ?? o.discount ?? 0);
 
-    return linesTotal + shipping - discount;
+    return linesTotal + shipping - discount >= 0 ? linesTotal + shipping - discount : 0;
   };
 
   const totalAllOrdersAmount = orders.reduce((sum: number, order: any) => {
@@ -186,41 +161,24 @@ const OrdersPage: React.FC = () => {
             </div>
           </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex-1 min-w-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex-1 min-w-0">
                 <AutocompleteSearchBar
                   searchFields={ordersSearchFields}
                   onSearch={handleAutocompleteSearch}
                   onSubmit={handleSearchSubmit}
                   placeholder="Tìm kiếm theo mã khách hàng hoặc giá..."
                 />
-          </div>
+              </div>
               <div className="flex gap-2">
-                {/* <Button
-                  variant="outline"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-2 ${showFilters ? 'bg-blue-50 text-blue-700 border-blue-300' : ''}`}
-                >
-                  <Filter className="h-4 w-4" />
-                  Bộ lọc
-                </Button> */}
                 <Button className="flex items-center gap-2" onClick={() => setShowCreateModal(true)}>
                   <Plus className="h-4 w-4" />
                   Tạo đơn hàng
                 </Button>
+                <Button variant="outline" onClick={handleRefresh}>Refresh</Button>
               </div>
-        </div>
-
-            {/* Filters Panel */}
-            {/* {showFilters && (
-              <OrdersFilters
-                filters={filters}
-                onFiltersChange={handleFiltersChange}
-                paymentMethods={paymentMethods}
-                stores={stores}
-              />
-            )} */}
+            </div>
           </div>
 
           {/* Statistics Summary */}
@@ -254,6 +212,7 @@ const OrdersPage: React.FC = () => {
             onViewDetail={handleViewDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            storesMap={storesMap}
           />
 
           {/* Pagination */}
@@ -275,16 +234,17 @@ const OrdersPage: React.FC = () => {
             isOpen={showDetailModal}
             onClose={() => setShowDetailModal(false)}
             orderId={selectedOrder?.id}
+            storesMap={storesMap}
           />
-        </div>
 
-        {showCreateModal && (
-          <OrderForm
-            isOpen={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => { refetch(); setShowCreateModal(false); }}
-          />
-        )}
+          {showCreateModal && (
+            <OrderForm
+              isOpen={showCreateModal}
+              onClose={() => setShowCreateModal(false)}
+              onSuccess={() => { refetch(); setShowCreateModal(false); }}
+            />
+          )}
+        </div>
       </div>
     </Layout>
   );

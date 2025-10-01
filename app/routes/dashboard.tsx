@@ -91,18 +91,14 @@ export default function Dashboard() {
         return;
       }
 
-      // Determine day key (YYYY-MM-DD). Use resp.to if available (may be full datetime), otherwise use local date.
       const rawTo = (resp as any).to;
       const dayKey = rawTo ? String(rawTo).slice(0, 10) : new Date().toISOString().slice(0, 10);
 
-      // Map each store entry to its revenue for that day (do NOT sum series across stores).
-      // IMPORTANT: we intentionally do NOT dedupe here — we want to render every store entry the API returned.
       const storesWithRevenue = resp.stores.map((s: any, idx: number) => {
         const storeId = s.storeId ?? `unknown-${idx}`;
         const storeName = s.storeName ?? `Store ${storeId}`;
         const series = Array.isArray(s.series) ? s.series : [];
 
-        // Try flexible date matching: compare first 10 chars (YYYY-MM-DD) to handle timestamps.
         const match = series.find((it: any) => String(it?.date ?? '').slice(0, 10) === dayKey);
         const revenueForDay = match ? Number(match.revenue) || 0 : 0;
 
@@ -111,7 +107,6 @@ export default function Dashboard() {
 
       console.debug('per-store storesWithRevenue:', storesWithRevenue);
 
-      // Sort descending by revenue so high-earning stores appear first, but keep all entries.
       const sorted = storesWithRevenue.sort((a: any, b: any) => b.revenueToday - a.revenueToday);
 
       if (requestId !== requestCounterRef.current) return;
@@ -150,10 +145,20 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        <header>
+        {/* <header>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Tổng quan kinh doanh và thống kê</p>
-        </header>
+        </header> */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">Dashboard</h1>
+                <p className="mt-2 text-gray-600">Tổng quan kinh doanh và thống kê</p>
+              </div>
+              <div className="flex items-center gap-2">
+              </div>
+            </div>
+          </div>
 
         {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">{error}</div>}
 
@@ -216,11 +221,6 @@ export default function Dashboard() {
 
             {topStoresError && <div className="text-sm text-red-600 bg-red-50 p-2 rounded-md mb-3">{topStoresError}</div>}
 
-            {/*
-              Key change:
-              - Wrap the list in a scrollable container with a responsive max height so the panel doesn't grow indefinitely.
-              - You can tweak max-h classes (eg. max-h-60 / md:max-h-80 / lg:max-h-96) to control how tall the box is before scrolling.
-            */}
             <div
               role="region"
               aria-label="Danh sách doanh thu cửa hàng hôm nay"

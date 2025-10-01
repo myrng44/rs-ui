@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supplierApi } from '~/utils/api';
 import { Button } from '~/components/Button';
-import { Modal } from '~/components/Modal';
 import { Toast } from '~/components/Toast';
 import { Pagination } from '~/components/Pagination';
 import { Layout } from '~/components/Layout';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import AutocompleteSearchBar, { type SearchField, type SearchResult } from '~/components/AutoCompleteSearchBar';
 import { Input } from '~/components/Input';
 
 interface Supplier {
-  id: string; 
+  id: string;
   name: string;
   address: string;
   locationId?: string;
@@ -63,7 +62,7 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(false);
 
   const [searchText, setSearchText] = useState<string>('');
-  const [sortValue, setSortValue] = useState('-createdTime');
+  const [sortBy, setSortBy] = useState<string>('-createdTime');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -87,7 +86,7 @@ export default function SuppliersPage() {
       const apiParams: any = {
         offset,
         limit: itemsPerPage,
-        sort: sortValue,
+        sort: sortBy,
       };
 
       if (queryText && queryText.trim()) {
@@ -119,7 +118,8 @@ export default function SuppliersPage() {
   useEffect(() => {
     setCurrentPage(1);
     loadSuppliers(1, searchText);
-  }, [searchText, sortValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, sortBy]);
 
   const handleAutocompleteSearch = async (query: string): Promise<SearchResult[]> => {
     try {
@@ -142,7 +142,7 @@ export default function SuppliersPage() {
     setFormData({
       name: s.name || '',
       address: s.address || '',
-      locationId: s.locationId = String(s.locationId) != null ? String(s.locationId) : '',
+      locationId: s.locationId != null ? String(s.locationId) : '',
       contact: s.contact || '',
     });
     setIsModalOpen(true);
@@ -158,14 +158,14 @@ export default function SuppliersPage() {
       if (editingSupplier) {
         await supplierApi.update(editingSupplier.id, {
           name: formData.name,
-          locationId: formData.locationId ? formData.locationId : null ,
+          locationId: formData.locationId ? formData.locationId : null,
           contact: formData.contact,
         });
         setToast({ message: 'Cập nhật thành công', type: 'success' });
       } else {
         await supplierApi.create({
           name: formData.name,
-          locationId: formData.locationId ? formData.locationId : null ,
+          locationId: formData.locationId ? formData.locationId : null,
           contact: formData.contact,
         });
         setToast({ message: 'Thêm mới thành công', type: 'success' });
@@ -205,168 +205,151 @@ export default function SuppliersPage() {
     setCurrentPage(1);
   };
 
+  // Sort handler (toggle like OrdersTable)
+  const handleSort = useCallback((field: string) => {
+    setSortBy((prev) => (prev === field ? `-${field}` : prev === `-${field}` ? field : field));
+    setCurrentPage(1);
+  }, []);
+
+  const getSortIcon = (field: string) => {
+    if (sortBy === field) return ' ↑';
+    if (sortBy === `-${field}`) return ' ↓';
+    return '';
+  };
+
   // ----- Render -----
-return (
-  <Layout>
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-        <div className="flex-1">
-          <h1 className="text-2xl font-semibold text-gray-800">Quản lý Nhà Cung Cấp</h1>
-          <p className="text-sm text-gray-500 mt-1">Danh sách nhà cung cấp</p>
-        </div>
-      </div>
-
-      {/* Search + Add */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex-1 md:mx-6">
-            <AutocompleteSearchBar
-              searchFields={supplierSearchFields}
-              onSearch={handleAutocompleteSearch}
-              onSubmit={handleSearchSubmit}
-              placeholder="Tìm nhà cung cấp..."
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button onClick={openCreateModal}>
-              <span className="flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Thêm nhà cung cấp
-              </span>
-            </Button>
+  return (
+    <Layout>
+      <div className="p-6 space-y-6">
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">Quản lý Nhà Cung Cấp</h1>
+              <p className="mt-2 text-gray-600">Danh sách nhà cung cấp</p>
+            </div>
+            <div className="flex items-center gap-2"></div>
           </div>
         </div>
-      </div>
 
-      {/* Sort */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <select
-            value={sortValue}
-            onChange={(e) => setSortValue(e.target.value)}
-            className="px-3 py-2 border rounded-md bg-white"
-          >
-            <option value="-createdTime">Mới nhất</option>
-            <option value="createdTime">Cũ nhất</option>
-            <option value="name">Tên A→Z</option>
-            <option value="-name">Tên Z→A</option>
-          </select>
+        {/* Search + Add */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex-1 md:mx-6">
+              <AutocompleteSearchBar
+                searchFields={supplierSearchFields}
+                onSearch={handleAutocompleteSearch}
+                onSubmit={handleSearchSubmit}
+                placeholder="Tìm nhà cung cấp..."
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button onClick={openCreateModal}>
+                <span className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Thêm nhà cung cấp
+                </span>
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">TÊN</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">LIÊN HỆ</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">LOCATION</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">THAO TÁC</th>
-              </tr>
-            </thead>
-
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
+        {/* Table */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center">
-                    <div className="flex justify-center items-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <span className="ml-3 text-gray-600">Đang tải dữ liệu...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : suppliers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    Không có nhà cung cấp
-                  </td>
-                </tr>
-              ) : (
-                suppliers.map((s, idx) => (
-                  <tr
-                    key={s.id}
-                    className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                  <th
+                    onClick={() => handleSort('id')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                   >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <div className="font-medium text-gray-900 truncate">{s.id}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <div className="font-medium text-gray-900 truncate">{s.name}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <div className="font-medium text-gray-900 truncate">{s.contact || '—'}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <div className="font-medium text-gray-900 truncate">{s.locationId ? String(s.locationId) : '—'}</div>
-                        </td>                    
+                    ID{getSortIcon('id')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('name')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  >
+                    TÊN{getSortIcon('name')}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LIÊN HỆ</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LOCATION</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">THAO TÁC</th>
+                </tr>
+              </thead>
 
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditModal(s)}
-                          className="text-amber-600 hover:text-amber-900 hover:bg-amber-50"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(s.id)}
-                          className="text-red-600 hover:text-red-900 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center">
+                      <div className="flex justify-center items-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span className="ml-3 text-gray-600">Đang tải dữ liệu...</span>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : suppliers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      Không có nhà cung cấp
+                    </td>
+                  </tr>
+                ) : (
+                  suppliers.map((s, idx) => (
+                    <tr
+                      key={s.id}
+                      className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 truncate">{s.id}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 truncate">{s.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 truncate">{s.contact || '—'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 truncate">{s.locationId ? String(s.locationId) : '—'}</div>
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(s.id)}
+                            className="text-red-600 hover:text-red-900 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* Pagination */}
-      <div className="pt-4">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          itemsPerPage={itemsPerPage}
-          onPageChange={(page) => {
-            setCurrentPage(page);
-            loadSuppliers(page, searchText);
-          }}
-          loading={loading}
-        />
-      </div>
-
-      {/* Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingSupplier ? 'Cập nhật Nhà cung cấp' : 'Thêm mới Nhà cung cấp'}
-      >
-        <SupplierForm
-          formData={formData}
-          onChange={(field, value) => setFormData({ ...formData, [field]: value })}
-        />
-        <div className="mt-4 flex justify-end gap-2">
-          <Button onClick={() => setIsModalOpen(false)} variant="secondary">
-            Hủy
-          </Button>
-          <Button onClick={handleSave}>{editingSupplier ? 'Cập nhật' : 'Thêm mới'}</Button>
+        {/* Pagination */}
+        <div className="pt-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              loadSuppliers(page, searchText);
+            }}
+            loading={loading}
+          />
         </div>
-      </Modal>
 
-      {/* Toast */}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-    </div>
-  </Layout>
-);
+        {/* Toast */}
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </div>
+    </Layout>
+  );
 }

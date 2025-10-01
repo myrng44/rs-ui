@@ -1,12 +1,14 @@
+
 import React from 'react';
-import { Eye, Edit, Trash2, Pencil } from 'lucide-react';
+import { Eye, Trash2 } from 'lucide-react';
 import { Button } from '../Button';
 
 interface Order {
   id: string;
   customerId?: string;
   customerName?: string;
-  storeId?: number;
+  storeId?: string;
+  storeName?: string;
   voucherCode?: string | null;
   finalPrice?: number | null;
   paymentMethodName?: string;
@@ -23,9 +25,10 @@ interface Props {
   onViewDetail: (order: Order) => void;
   onEdit: (order: Order) => void;
   onDelete: (orderId: string) => void;
+  storesMap?: Record<string, string>;
 }
 
-const OrdersTable: React.FC<Props> = ({ orders, loading, sortBy, onSort, onViewDetail, onEdit, onDelete }) => {
+const OrdersTable: React.FC<Props> = ({ orders, loading, sortBy, onSort, onViewDetail, onEdit, onDelete, storesMap }) => {
   const getSortIcon = (field: string) => {
     if (sortBy === field) return ' ↑';
     if (sortBy === `-${field}`) return ' ↓';
@@ -46,6 +49,12 @@ const OrdersTable: React.FC<Props> = ({ orders, loading, sortBy, onSort, onViewD
 
   const handleDelete = (orderId: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa đơn hàng này?')) onDelete(orderId);
+  };
+
+  const getStoreDisplay = (order: Order) => {
+    const id = order.storeId ?? '';
+    const asId = id !== null && id !== undefined ? String(id) : '';
+    return (storesMap && storesMap[asId]) || order.storeName || '—';
   };
 
   return (
@@ -75,7 +84,7 @@ const OrdersTable: React.FC<Props> = ({ orders, loading, sortBy, onSort, onViewD
                   <tr key={order.id} className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{order.id}</div>
-                      <div className="text-xs text-gray-500">Cửa hàng {order.storeId}</div>
+                      <div className="text-xs text-gray-500">Cửa hàng: {getStoreDisplay(order)}</div>
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -98,7 +107,6 @@ const OrdersTable: React.FC<Props> = ({ orders, loading, sortBy, onSort, onViewD
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <Button variant="ghost" size="sm" onClick={() => onViewDetail(order)} className="text-blue-600 hover:text-blue-900 hover:bg-blue-50"><Eye className="h-4 w-4" /></Button>
-                        {/* <Button variant="ghost" size="sm" onClick={() => onEdit(order)} className="text-amber-600 hover:text-amber-900 hover:bg-amber-50"><Pencil className="h-4 w-4" /></Button> */}
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(order.id)} className="text-red-600 hover:text-red-900 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </td>
@@ -114,3 +122,4 @@ const OrdersTable: React.FC<Props> = ({ orders, loading, sortBy, onSort, onViewD
 };
 
 export default OrdersTable;
+

@@ -9,7 +9,7 @@ export default [
   route("orders", "routes/orders.tsx"),
   route("suppliers", "routes/suppliers.tsx"),
   route("stores", "routes/stores.tsx"),
-  // route("stock", "routes/stock.tsx"),
+  route("batch", "routes/batch.tsx"),
   // route("vouchers", "routes/vouchers.tsx"),
   route("statistics", "routes/statistics.tsx"),
   route("about", "routes/about.tsx"),

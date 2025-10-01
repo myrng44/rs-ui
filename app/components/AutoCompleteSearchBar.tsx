@@ -1,6 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Input } from "./Input";
-import Dropdown from "./Dropdown";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export interface SearchField {
   value: string;
@@ -12,7 +10,6 @@ export interface SearchField {
 export interface SearchResult {
   id: string;
   displayText: string;
-  // optional helper value/name for constructing queries
   value?: string;
   name?: string;
   [key: string]: any;
@@ -24,293 +21,201 @@ interface AutocompleteSearchBarProps {
   placeholder?: string;
   debounceMs?: number;
   maxResults?: number;
-
-  // NEW:
-  onSelect?: (item: SearchResult) => void; // gọi khi user click 1 gợi ý
-  onSubmit?: (query: string) => void;      // gọi khi user submit (Enter) hoặc chọn gợi ý nếu submitOnSelect=true
-  submitOnSelect?: boolean;                // default true
+  onSelect?: (item: SearchResult) => void;
+  onSubmit?: (query: string) => void;
+  submitOnSelect?: boolean;
+  className?: string;
 }
 
-// Mapping for different operators
 const OPERATORS = {
   EQUALS: ":",
-  NOT_IN: "<>",
-  NEGATION: "!",
-  GREATER_THAN: ">",
-  GREATER_THAN_OR_EQUAL: ">:",
-  LESS_THAN: "<",
-  LESS_THAN_OR_EQUAL: "<:",
-  BETWEEN: "()",
-  CONTAINS: "~"
+  CONTAINS: "~",
 };
 
-// Default operators for different field types
 const getDefaultOperator = (field: SearchField): string => {
   if (field.operator) return field.operator;
-
-  switch (field.type) {
-    case 'number':
-      return OPERATORS.EQUALS;
-    case 'text':
-    default:
-      return OPERATORS.CONTAINS;
-  }
+  return field.type === 'number' ? OPERATORS.EQUALS : OPERATORS.CONTAINS;
 };
 
-export function AutocompleteSearchBar({
+export default function AutocompleteSearchBar({
   searchFields,
   onSearch,
-  placeholder = "Nhập từ khóa tìm kiếm...",
-  debounceMs = 500,
-  maxResults = 10,
+  placeholder = "Tìm...",
+  debounceMs = 350,
+  maxResults = 8,
   onSelect,
   onSubmit,
-  submitOnSelect = true
+  submitOnSelect = true,
+  className = ""
 }: AutocompleteSearchBarProps) {
-  const [selectedField, setSelectedField] = useState(searchFields[0]?.value || "");
-  const [searchValue, setSearchValue] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [error, setError] = useState("");
+  const [selectedField, setSelectedField] = useState<string>(searchFields[0]?.value ?? "");
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const timerRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Close dropdown when clicking outside
+  // Close on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
+    const onDoc = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
-  // Debounced search function
-  const debouncedSearch = useCallback(async (query: string, fieldValue: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setShowDropdown(false);
-      setIsLoading(false);
+  // Debounced search
+  const doSearch = useCallback(async (value: string, fieldVal: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setResults([]);
+      setOpen(false);
+      setLoading(false);
       return;
     }
-
+    setLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError("");
-
-      const selectedFieldObj = searchFields.find(f => f.value === fieldValue) || searchFields[0];
-      const operator = getDefaultOperator(selectedFieldObj!);
-      const searchQuery = `${fieldValue}${operator}${query.trim()}`;
-
-      const results = await onSearch(searchQuery);
-      setSearchResults(results.slice(0, maxResults));
-      setShowDropdown(true);
+      const fieldObj = searchFields.find(f => f.value === fieldVal) ?? searchFields[0];
+      const op = getDefaultOperator(fieldObj!);
+      const query = `${fieldVal}${op}${trimmed}`;
+      const res = await onSearch(query);
+      setResults(res.slice(0, maxResults));
+      setOpen(true);
     } catch (err: any) {
-      setError("Không thể tìm kiếm");
-      console.error("Search error:", err);
-      setSearchResults([]);
-      setShowDropdown(false);
+      console.error("search err", err);
+      setError("Lỗi tìm kiếm");
+      setResults([]);
+      setOpen(false);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, [onSearch, searchFields, maxResults]);
 
-  // Handle search input change with debounce
   useEffect(() => {
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+    // debounce
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    if (!q.trim()) {
+      setResults([]);
+      setOpen(false);
+      setLoading(false);
+      return;
     }
-
-    // Set new timeout only if there's a search value
-    if (searchValue.trim()) {
-      searchTimeoutRef.current = setTimeout(() => {
-        debouncedSearch(searchValue, selectedField);
-      }, debounceMs);
-    } else {
-      // Immediately clear results if search is empty
-      setSearchResults([]);
-      setShowDropdown(false);
-      setIsLoading(false);
-    }
-
-    // Cleanup function
+    timerRef.current = window.setTimeout(() => {
+      doSearch(q, selectedField);
+    }, debounceMs);
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      if (timerRef.current) window.clearTimeout(timerRef.current);
     };
-  }, [searchValue, selectedField, debouncedSearch, debounceMs]);
+  }, [q, selectedField, doSearch, debounceMs]);
 
-  const handleFieldChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedField(e.target.value);
-    // Keep current searchValue but re-query quickly
-    if (searchValue.trim()) {
-      // re-run search immediately for new field
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-      debouncedSearch(searchValue, e.target.value);
-    }
-  };
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchValue(e.target.value);
-  };
-
-  const handleClear = () => {
-    setSearchValue("");
-    setSearchResults([]);
-    setShowDropdown(false);
-    setError("");
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    // notify parent that search was cleared
-    onSubmit && onSubmit("");
-  };
-
-  const buildQueryFromValue = (fieldValue: string, val: string) => {
-    const selectedFieldObj = searchFields.find(f => f.value === fieldValue) || searchFields[0];
-    const operator = getDefaultOperator(selectedFieldObj!);
-    return `${fieldValue}${operator}${val}`;
-  };
-
-  const handleResultClick = (result: SearchResult) => {
-    // call parent select
-    onSelect && onSelect(result);
-
-    // optionally also submit constructed query
-    const chosenVal = result.value ?? result.name ?? result.displayText ?? result.id ?? "";
+  const handleSelectResult = (r: SearchResult) => {
+    onSelect && onSelect(r);
+    const val = r.value ?? r.name ?? r.displayText ?? r.id ?? "";
     if (submitOnSelect && onSubmit) {
-      const q = buildQueryFromValue(selectedField, String(chosenVal));
-      onSubmit(q);
+      const fieldObj = searchFields.find(f => f.value === selectedField) ?? searchFields[0];
+      const qStr = `${selectedField}${getDefaultOperator(fieldObj!)}${String(val)}`;
+      onSubmit(qStr);
     }
-
-    setShowDropdown(false);
+    setOpen(false);
   };
 
-  // handle Enter key submit
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const trimmed = searchValue.trim();
+      const trimmed = q.trim();
       if (!trimmed) {
-        // empty -> treat as clear
         onSubmit && onSubmit("");
-        setShowDropdown(false);
+        setOpen(false);
         return;
       }
-      const q = buildQueryFromValue(selectedField, trimmed);
-      onSubmit && onSubmit(q);
-      setShowDropdown(false);
+      const fieldObj = searchFields.find(f => f.value === selectedField) ?? searchFields[0];
+      const query = `${selectedField}${getDefaultOperator(fieldObj!)}${trimmed}`;
+      onSubmit && onSubmit(query);
+      setOpen(false);
     }
     if (e.key === 'Escape') {
-      setShowDropdown(false);
+      setOpen(false);
     }
   };
 
-  const selectedFieldObj = searchFields.find(field => field.value === selectedField);
-  const selectedFieldType = selectedFieldObj?.type || 'text';
+  const clear = () => {
+    setQ("");
+    setResults([]);
+    setOpen(false);
+    setError(null);
+    onSubmit && onSubmit("");
+    inputRef.current?.focus();
+  };
 
   return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-      <div className="flex gap-3 items-end">
-        <div className="w-48">
-          <Dropdown
-            label="Tìm kiếm theo"
-            value={selectedField}
-            onChange={handleFieldChange}
-            options={searchFields.map(field => ({
-              value: field.value,
-              label: field.label
-            }))}
-          />
+    <div ref={containerRef} className={`flex items-center gap-2 text-sm ${className}`}>
+      {/* compact select */}
+      <select
+        aria-label="field"
+        value={selectedField}
+        onChange={(e) => setSelectedField(e.target.value)}
+        className="h-8 px-2 rounded border border-gray-200 bg-white text-xs"
+      >
+        {searchFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+      </select>
+
+      {/* compact input */}
+      <div className="relative flex-1">
+        <input
+          ref={inputRef}
+          type={searchFields.find(f => f.value === selectedField)?.type ?? 'text'}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="w-full h-8 px-2 rounded border border-gray-200 text-sm"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          role="combobox"
+        />
+
+        {/* clear / loader */}
+        <div className="absolute right-1 top-1.5 flex items-center gap-1">
+          {loading ? (
+            <div className="w-4 h-4 border-b-2 border-primary animate-spin rounded-full" />
+          ) : q ? (
+            <button onClick={clear} aria-label="clear" className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-700">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          ) : null}
         </div>
 
-        <div className="flex-1 relative" ref={dropdownRef}>
-          <Input
-            ref={inputRef}
-            label="Từ khóa"
-            type={selectedFieldType}
-            value={searchValue}
-            onChange={handleSearchChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-          />
-
-          {/* Search Results Dropdown */}
-          {showDropdown && (searchResults.length > 0 || isLoading || error) && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-              {isLoading && (
-                <div className="p-4 text-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto"></div>
-                  <span className="text-sm text-gray-600 mt-2">Đang tìm kiếm...</span>
-                </div>
-              )}
-
-              {error && (
-                <div className="p-3 text-sm text-red-600 border-b">
-                  {error}
-                </div>
-              )}
-
-              {!isLoading && !error && searchResults.length === 0 && searchValue.trim() && (
-                <div className="p-3 text-sm text-gray-500 text-center">
-                  Không tìm thấy kết quả nào
-                </div>
-              )}
-
-              {!isLoading && searchResults.map((result) => (
+        {/* dropdown results (compact) */}
+        {open && (results.length > 0 || error) && (
+          <div className="absolute z-50 mt-1 left-0 right-0 bg-white border border-gray-200 rounded shadow max-h-48 overflow-auto text-xs">
+            {error ? (
+              <div className="p-2 text-red-600">{error}</div>
+            ) : (
+              results.map(r => (
                 <div
-                  key={result.id}
-                  onClick={() => handleResultClick(result)}
-                  className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 text-sm"
+                  key={r.id}
+                  onClick={() => handleSelectResult(r)}
+                  className="px-2 py-2 hover:bg-gray-50 cursor-pointer flex flex-col"
                 >
-                  <div className="font-medium text-gray-900">
-                    {result.displayText}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    ID: {result.id}
-                  </div>
+                  <span className="font-medium">{r.displayText}</span>
+                  <span className="text-gray-400">{r.value ?? r.id}</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {searchValue ? (
-          <button
-            onClick={handleClear}
-            className="mb-2 px-3 py-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            title="Xóa tìm kiếm"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        ) : null}
+              ))
+            )}
+            {results.length === 0 && !error && (
+              <div className="p-2 text-gray-500">Không tìm thấy</div>
+            )}
+          </div>
+        )}
       </div>
-
-      {searchValue && (
-        <div className="mt-2 text-sm text-gray-600">
-          Tìm <span className="font-medium">{selectedFieldObj?.label}</span>
-          <span className="mx-1 font-mono text-blue-600">
-            {getDefaultOperator(selectedFieldObj!)}
-          </span>
-          <span className="font-medium">"{searchValue}"</span>
-          {searchResults.length > 0 && (
-            <span className="ml-2 text-green-600">
-              ({searchResults.length} kết quả)
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
-
-export default AutocompleteSearchBar;

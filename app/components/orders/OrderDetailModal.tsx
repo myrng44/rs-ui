@@ -7,11 +7,12 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   orderId: string | null;
+  storesMap?: Record<string, string>;
 }
 
 const formatCurrency = (v: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0);
 
-const OrderDetailModal: React.FC<Props> = ({ isOpen, onClose, orderId }) => {
+const OrderDetailModal: React.FC<Props> = ({ isOpen, onClose, orderId, storesMap }) => {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,16 +54,23 @@ const OrderDetailModal: React.FC<Props> = ({ isOpen, onClose, orderId }) => {
 
   const { linesTotal, discount, shipping, total } = compute(order);
 
+  const getStoreName = (o: any) => {
+    // priority: provided store map -> order.storeName (if backend provides) -> fallback to raw id
+    if (!o) return '—';
+    const id = o.storeId ?? o.store?.id ?? '';
+    const asId = id !== null && id !== undefined ? String(id) : '';
+    return (storesMap && storesMap[asId]) || o.storeName || asId || '—';
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-  
-    <div
-      className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-      onClick={onClose} 
-    />
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-    <div className="relative bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
-       <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+      <div className="relative bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Chi tiết đơn hàng {orderId}
@@ -78,7 +86,7 @@ const OrderDetailModal: React.FC<Props> = ({ isOpen, onClose, orderId }) => {
           ) : error ? (
             <div className="text-center py-8">
               <div className="text-red-600 mb-4">{error}</div>
-              <Button onClick={() => { if (orderId) { setLoading(true); setError(null); ordersApi.getById(orderId).then(d=>setOrder(d)).catch(()=>setError('Không thể tải lại')).finally(()=>setLoading(false)); }}}>Thử lại</Button>
+              <Button onClick={() => { if (orderId) { setLoading(true); setError(null); ordersApi.getById(orderId).then(d => setOrder(d)).catch(() => setError('Không thể tải lại')).finally(() => setLoading(false)); }}}>Thử lại</Button>
             </div>
           ) : order ? (
             <div className="space-y-6">
@@ -88,7 +96,7 @@ const OrderDetailModal: React.FC<Props> = ({ isOpen, onClose, orderId }) => {
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between"><span className="font-medium text-gray-600">Mã đơn:</span><span className="text-gray-900">{order.id}</span></div>
                     <div className="flex justify-between"><span className="font-medium text-gray-600">Khách hàng:</span><span className="text-gray-900">{order.customerName ?? order.customerId}</span></div>
-                    <div className="flex justify-between"><span className="font-medium text-gray-600">Cửa hàng:</span><span className="text-gray-900">{order.storeId}</span></div>
+                    <div className="flex justify-between"><span className="font-medium text-gray-600">Cửa hàng:</span><span className="text-gray-900">{getStoreName(order)}</span></div>
                     <div className="flex justify-between"><span className="font-medium text-gray-600">Voucher:</span><span className="text-gray-900">{order.voucherCode ?? 'Không có'}</span></div>
                     <div className="flex justify-between"><span className="font-medium text-gray-600">Phương thức TT:</span><span className="text-gray-900">{order.paymentMethodName}</span></div>
                     <div className="flex justify-between"><span className="font-medium text-gray-600">Ghi chú:</span><span className="text-gray-900">{order.note ?? 'Không có'}</span></div>

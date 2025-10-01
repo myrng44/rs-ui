@@ -10,11 +10,6 @@ interface PaginationProps {
   loading?: boolean;
 }
 
-/**
- * Tạo mảng các trang để hiển thị xung quanh `centerPage`.
- * Khi slider thay đổi, ta dùng center = selectedPage để đảm bảo
- * các nút số luôn bao phủ trang đang được preview.
- */
 function getVisiblePages(centerPage: number, totalPages: number, maxVisible = 7): number[] {
   if (totalPages <= maxVisible) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -37,47 +32,43 @@ export function Pagination({
   onPageChange,
   loading = false
 }: PaginationProps) {
-  // localSelected là trang đang được "preview" bởi slider (chưa commit)
-  const [localSelected, setLocalSelected] = useState<number>(Math.max(1, currentPage));
+  const [localSelected, setLocalSelected] = useState<number>(() =>
+    Math.max(1, Math.min(totalPages || 1, currentPage || 1))
+  );
 
-  // Khi parent thay đổi currentPage (ví dụ refetch), đồng bộ lại preview
+  // input state for jump box (string so user can type)
+  const [pageInput, setPageInput] = useState<string>(String(currentPage));
+
   useEffect(() => {
-    setLocalSelected(Math.max(1, currentPage));
-  }, [currentPage]);
-
-  // tính hiển thị items
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
-  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    const clamped = Math.max(1, Math.min(totalPages || 1, currentPage || 1));
+    setLocalSelected(clamped);
+    setPageInput(String(clamped));
+  }, [currentPage, totalPages]);
 
   if (totalPages <= 1) return null;
 
-  // Prev/Next commit ngay lập tức (dùng currentPage)
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  const goTo = (page: number) => {
+    const clamped = Math.max(1, Math.min(totalPages, Math.floor(page)));
+    if (loading || clamped === currentPage) return;
+    setLocalSelected(clamped);
+    setPageInput(String(clamped));
+    onPageChange(clamped);
+  };
+
   const prev = () => {
     if (loading || currentPage <= 1) return;
-    onPageChange(currentPage - 1);
+    goTo(currentPage - 1);
   };
   const next = () => {
     if (loading || currentPage >= totalPages) return;
-    onPageChange(currentPage + 1);
+    goTo(currentPage + 1);
   };
 
-  // khi slider thay đổi: chỉ cập nhật preview (localSelected)
-  const onSliderChange = (v: number) => {
-    setLocalSelected(v);
-  };
-
-  // Khi người click nút số: commit trang này
-  const onNumberClick = (page: number) => {
-    if (loading) return;
-    // nếu user đã preview một trang khác (localSelected), họ có thể click số để commit that page.
-    // commit the page that was clicked (not necessarily currentPage)
-    onPageChange(page);
-    // đồng bộ preview với trang thực
-    setLocalSelected(page);
-  };
-
-  // Các nút hiển thị dựa trên preview (để khi kéo slider, danh sách số p sẽ bao phủ preview)
-  const visiblePages = getVisiblePages(localSelected, totalPages, 7);
+  // center pages around the real current page for stable appearance
+  const visiblePages = getVisiblePages(currentPage, totalPages, 7);
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3 bg-white border-t border-gray-200">
@@ -94,103 +85,109 @@ export function Pagination({
             size="sm"
             onClick={prev}
             disabled={currentPage <= 1 || loading}
+            aria-label="Trang trước"
+            title="Trang trước"
           >
-            Trước
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M15 6 L9 12 L15 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </Button>
 
-          {/* Số trang (khi click sẽ chuyển trang) */}
-          {visiblePages.map((page) => {
-            const isPreviewed = page === localSelected;
-            const isCurrent = page === currentPage;
-            // highlight previewed page (filled) so user sees which page will be committed if clicked
-            const variant = isPreviewed ? "primary" : (isCurrent ? "primary" : "outline");
-            const className = isPreviewed
-              ? "bg-primary text-white"
-              : (isCurrent ? "border-primary text-primary" : "");
-            return (
-              <Button
-                key={page}
-                variant={variant as any}
-                size="sm"
-                onClick={() => onNumberClick(page)}
-                disabled={loading}
-                className={className}
-                aria-current={isCurrent ? "page" : undefined}
-                title={isPreviewed ? `Đang chọn trang ${page} (bấm để đi)` : `Trang ${page}`}
-              >
-                {page}
-              </Button>
-            );
-          })}
+          {/* Container cho nút số — whitespace-nowrap để tránh bị wrap/che */}
+          <div className="flex items-center gap-1 whitespace-nowrap">
+            {visiblePages.map((page) => {
+              const isCurrent = page === currentPage;
+              // primary for current, outline for others
+              const variant = isCurrent ? "primary" : "outline";
+              // make buttons a consistent min width so current page isn't hidden
+              const className = isCurrent
+                ? "border-primary text-primary min-w-[36px] flex items-center justify-center"
+                : "min-w-[36px] flex items-center justify-center";
+              return (
+                <Button
+                  key={page}
+                  variant={variant as any}
+                  size="sm"
+                  onClick={() => goTo(page)}
+                  disabled={loading || page === currentPage}
+                  className={className}
+                  aria-current={isCurrent ? "page" : undefined}
+                  title={`Trang ${page}`}
+                >
+                  {page}
+                </Button>
+              );
+            })}
+          </div>
 
           <Button
             variant="outline"
             size="sm"
             onClick={next}
             disabled={currentPage >= totalPages || loading}
+            aria-label="Trang sau"
+            title="Trang sau"
           >
-            Sau
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M9 6 L15 12 L9 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </Button>
+
+          {/* Jump box: input + button */}
+          <div className="flex items-center gap-2 ml-2">
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={pageInput}
+              onChange={(e) => {
+                // allow empty or partial input; sanitize to digits only
+                const raw = e.target.value;
+                // allow '' so user can edit
+                if (raw === "") {
+                  setPageInput("");
+                  return;
+                }
+                // only accept digits and clamp later on submit
+                const onlyDigits = raw.replace(/[^\d]/g, "");
+                setPageInput(onlyDigits);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const v = Number(pageInput) || currentPage;
+                  goTo(v);
+                }
+              }}
+              disabled={loading}
+              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none"
+              aria-label="Nhập trang để tới"
+              title={`Nhập trang từ 1 tới ${totalPages}`}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const v = Number(pageInput) || currentPage;
+                goTo(v);
+              }}
+              disabled={loading || String(currentPage) === String(pageInput) || pageInput === ""}
+            >
+              Đến
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Slider nằm dưới số */}
-      <div className="flex items-center gap-3">
-        <div className="text-xs text-gray-500 w-14 text-center">Trang</div>
-
-        <div className="flex-1 px-2">
-          <input
-            type="range"
-            min={1}
-            max={totalPages}
-            value={localSelected}
-            onChange={(e) => onSliderChange(Number(e.target.value))}
-            disabled={loading}
-            className="w-full h-2 appearance-none bg-gray-200 rounded-lg accent-primary"
-            aria-label="Chọn trang để preview"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-1">
-            <span>1</span>
-            <span>{totalPages}</span>
-          </div>
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <div>
+          Trang <span className="font-medium">{currentPage}</span> /{" "}
+          <span className="font-medium">{totalPages}</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="px-3 py-1 bg-gray-50 border border-gray-200 rounded text-sm w-16 text-center">
-            {localSelected}/{totalPages}
-          </div>
-
-          {/* "Đi" vẫn dùng: commit vào trang preview nếu khác current */}
-          <input
-            type="number"
-            min={1}
-            max={totalPages}
-            value={localSelected}
-            onChange={(e) => {
-              const v = Number(e.target.value) || 1;
-              const page = Math.max(1, Math.min(totalPages, Math.floor(v)));
-              setLocalSelected(page);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && localSelected !== currentPage) onPageChange(localSelected);
-            }}
-            className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none"
-            aria-label="Nhập trang để preview"
-            disabled={loading}
-          />
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (!loading && localSelected !== currentPage) {
-                onPageChange(localSelected);
-              }
-            }}
-            disabled={loading || localSelected === currentPage}
-          >
-            Đi
-          </Button>
+        <div>
+          <span className="text-xs text-gray-400">
+            {itemsPerPage} kết quả / trang
+          </span>
         </div>
       </div>
     </div>

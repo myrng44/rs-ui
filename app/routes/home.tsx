@@ -49,7 +49,7 @@ const features = [
     icon: "📋",
     title: "Kho",
     desc: "Quản lý tồn kho và nhập xuất",
-    link: "/stock",
+    link: "/batch",
     btn: "Quản lý Kho",
   },
   {

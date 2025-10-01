@@ -2,22 +2,22 @@
 
 @theme {
   /* Màu chủ đạo */
-  --color-primary: #113F67; /* Xanh navy đậm */
-  --color-secondary: #77BEF0; /* Xanh pastel nhẹ */
-  --color-accent: #3E5F44; /* Xanh rêu nhẹ, dùng làm nhấn phụ */
+  --color-primary: #113F67; 
+  --color-secondary: #77BEF0;
+  --color-accent: #3E5F44; 
 
   /* Nền & bề mặt */
-  --color-background: #f5f7fa; /* Nền tổng thể sáng, dịu mắt */
-  --color-surface: #ffffff; /* Bề mặt trắng */
-  --color-surface-variant: #f1f3f5; /* Nền nhạt cho section phụ */
+  --color-background: #f5f7fa; 
+  --color-surface: #ffffff; 
+  --color-surface-variant: #f1f3f5; 
 
   /* Màu chữ */
-  --color-on-surface: #1a202c; /* Chữ chính đậm */
-  --color-on-primary: #ffffff; /* Chữ trên nền primary */
-  --color-on-secondary: #1a202c; /* Chữ trên nền secondary */
+  --color-on-surface: #1a202c; 
+  --color-on-primary: #ffffff; 
+  --color-on-secondary: #1a202c; 
 
   /* Border */
-  --color-border: #e2e8f0; /* Viền sáng trung tính */
+  --color-border: #e2e8f0; 
 
   /* Trạng thái */
   --color-success: #16a34a;
@@ -25,9 +25,9 @@
   --color-error: #ef4444;
 
   /* Màu đặc biệt */
-  --color-login: #DEE8CE; /* Nền trang đăng nhập nhẹ nhàng */
+  --color-login: #DEE8CE; 
 
-  /* Thang xám chuẩn Tailwind */
+  /* Thang xám */
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;
   --color-gray-200: #e5e7eb;

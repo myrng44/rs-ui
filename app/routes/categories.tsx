@@ -8,7 +8,8 @@ import { Layout } from '~/components/Layout';
 import { Pencil, Trash2 } from 'lucide-react';
 
 import { CategoryForm } from '~/components/category/CategoryForm';
-import { AutocompleteSearchBar, type SearchField, type SearchResult } from '~/components/AutoCompleteSearchBar';
+import { type SearchField, type SearchResult } from '~/components/AutoCompleteSearchBar';
+import AutocompleteSearchBar from '~/components/AutoCompleteSearchBar';
 
 interface Category {
   id: string;
@@ -169,12 +170,17 @@ export default function CategoriesPage() {
     <Layout>
       <div className="p-6 space-y-6">
 
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="flex-1">
-            <h1 className="text-2xl font-semibold text-gray-800">Quản lý Danh Mục</h1>
-            <p className="text-sm text-gray-500 mt-1">Thêm, sửa, xóa và quản lý sản phẩm</p>
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">Quản lý danh mục</h1>
+                <p className="mt-2 text-gray-600">Thêm, sửa, xóa danh mục</p>
+              </div>
+              <div className="flex items-center gap-2">
+              </div>
+            </div>
           </div>
-        </div>
+
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

@@ -18,7 +18,7 @@ export interface TableAction<T = any> {
   disabled?: (item: T) => boolean;
   icon?: ForwardRefExoticComponent<
     Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>
-  >; // 👈 thêm icon vào action
+  >; 
 }
 
 interface DataTableProps<T = any> {
